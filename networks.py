@@ -1,6 +1,4 @@
-#  This file is the brains of your agent —
-#  it handles interaction with the environment,
-#  learning from experience, and updating the networks.
+
 #  From https://robotics.farama.org/envs/maze/point_maze/
 #                           ***                 
 #  state ---> observation <NumPy array of shape (4,)>
