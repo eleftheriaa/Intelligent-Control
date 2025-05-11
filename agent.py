@@ -17,7 +17,7 @@ import numpy as np
 LOG_STD_MIN = -20
 LOG_STD_MAX = 2
 
-# 🧠 Gaussian Policy (Actor)
+#  Gaussian Policy (Actor)
 class Actor(nn.Module):
 
 
