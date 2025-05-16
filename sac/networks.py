@@ -1,4 +1,3 @@
-
 #  From https://robotics.farama.org/envs/maze/point_maze/
 #                           ***                 
 #  state ---> observation <NumPy array of shape (4,)>
@@ -42,24 +41,28 @@ class Actor(nn.Module):
 
         mean = self.mean_layer(x)
         log_std = self.log_std_layer(x)
-#  This clamps the log standard deviation
-#  to prevent it from being too small (which could cause instability)
-#  or too large (which could make exploration too random).
+        #  This clamps the log standard deviation
+        #  to prevent it from being too small (which could cause instability)
+        #  or too large (which could make exploration too random).
         log_std = torch.clamp(log_std, LOG_STD_MIN, LOG_STD_MAX)
-#  Convert log(σ) back to standard deviation (σ)
+
+        #  Convert log(σ) back to standard deviation (σ)
         std = log_std.exp()
 
         return mean, std
 
 
-#  This is the function that samples an action
-#  based on the current state and the network's predicted distribution over actions
+    #  This is the function that samples an action
+    #  based on the current state and the network's predicted distribution over actions
+    # You define π(α|s)as a Gaussian distribution with mean μ(s) and standard deviation σ(s)
+    # Then you sample through reparameterization
     def sample(self, state):
         mean, std = self.forward(state)
-#  Creates a Gaussian distribution with the predicted mean and std.
+        #  Creates a Gaussian distribution with the predicted mean and std.
         normal = torch.distributions.Normal(mean, std)
-        x_t = normal.rsample()  # reparameterization trick
-        y_t = torch.tanh(x_t)
+        x_t = normal.rsample()  # reparameterization trick x_t= mean+ std*epsilon
+        y_t = torch.tanh(x_t) #  The tanh function squashes the output to be between -1 and 1???????????????
+        #  The action is scaled by the max_action to ensure it stays within valid bounds???????
         action = y_t * self.max_action
 
 #  Computes the log-probability of the action under the Gaussian distribution
@@ -68,17 +71,16 @@ class Actor(nn.Module):
         log_prob -= torch.log(1 - y_t.pow(2) + 1e-6)
         log_prob = log_prob.sum(1, keepdim=True)
 
+        # A sampled, squashed, scaled action from the policy
+        # Its corrected log-probability, which is needed for the entropy term in SAC's policy loss
         return action, log_prob
 
-
-
-
+    #For the deterministic action, you can use the mean of the distribution
+    # This is the action that the policy would take without any noise
     def select_action(self, state):
         with torch.no_grad():
             mean, _ = self.forward(state)
             return torch.tanh(mean) * self.max_action
-
-
 
 
 class Critic(nn.Module):

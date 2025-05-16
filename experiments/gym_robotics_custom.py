@@ -2,6 +2,7 @@ import gymnasium as gym
 import gymnasium_robotics
 import time 
 
+
 gym.register_envs(gymnasium_robotics)
 example_map = [[1, 1, 1, 1, 1],
        [1, 0, 0, 0, 1],
@@ -16,6 +17,6 @@ for _ in range(1000):
     print(obs)
     time.sleep(0.05)
     if done:
-        env.reset()
+        env.reset() 
 
 env.close()
