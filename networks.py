@@ -62,8 +62,9 @@ class Actor(nn.Module):
         y_t = torch.tanh(x_t)
         action = y_t * self.max_action
 
-        # log prob with change of variables for tanh squashing
+#  Computes the log-probability of the action under the Gaussian distribution
         log_prob = normal.log_prob(x_t)
+#  1 - y_t.pow(2) is the derivative of tanh(z) (chain rule).
         log_prob -= torch.log(1 - y_t.pow(2) + 1e-6)
         log_prob = log_prob.sum(1, keepdim=True)
 
