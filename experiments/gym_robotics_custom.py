@@ -1,22 +1,28 @@
 import gymnasium as gym
-import gymnasium_robotics
-import time 
+import numpy as np
+from gymnasium import ObservationWrapper
 
 
-gym.register_envs(gymnasium_robotics)
-example_map = [[1, 1, 1, 1, 1],
-       [1, 0, 0, 0, 1],
-       [1, 1, 1, 1, 1]]
+class RoboGymObservationWrapper(ObservationWrapper):
+    def __init__(self, env):
+        super(RoboGymObservationWrapper, self).__init__(env)
 
-env = gym.make('PointMaze_UMaze-v3', render_mode="human")
-obs = env.reset()
+    def reset(self):
+        # Reset the environment and process the initial observation
+        observation, info = self.env.reset()
+        observation = self.process_observation(observation)
+        return observation, info
 
-for _ in range(1000):
-    action = env.action_space.sample()
-    obs, reward, done, truncated, info = env.step(action)
-    print(obs)
-    time.sleep(0.05)
-    if done:
-        env.reset() 
+    def step(self, action):
+        observation, reward, done, truncated, info = self.env.step(action)
+        state, observation = self.process_observation(observation)
+        return state, observation, reward, done, truncated, info
 
-env.close()
+    def process_observation(self, observation):
+        state = observation['observation'] #x,y, linear velocity in x , linear velocity in y
+        achieved_goal = observation['achieved_goal']
+        desired_goal = observation['desired_goal']
+
+        obs_concatenated = np.concatenate((state, achieved_goal, desired_goal))
+
+        return state, obs_concatenated
