@@ -10,9 +10,19 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+import os
 
 LOG_STD_MIN = -20
 LOG_STD_MAX = 2
+
+ #  This function initializes the weights of the neural network layers (nn.Linear).
+def weights_init(m):
+    if isinstance(m, nn.Linear):
+        # It draws from a uniform distribution designed to keep stable gradients
+        torch.nn.init.xavier_uniform_(m.weight, gain=1)
+         #Sets all bias terms initial to zero 
+        torch.nn.init.constant_(m.bias, 0)
+
 
 #  Gaussian Policy (Actor)
 class Actor(nn.Module):
@@ -20,17 +30,17 @@ class Actor(nn.Module):
 
     def __init__(self, state_dim, action_dim, max_action):
         super(Actor, self).__init__()
-# Two fully connected hidden layers with 256 units each.
+        # Two fully connected hidden layers with 256 units each.
         self.l1 = nn.Linear(state_dim, 256)
         self.l2 = nn.Linear(256, 256)
 
-#  The output of the final hidden layer is split into:
-# -> mean of the action distribution 
-# -> log standard deviation (log σ) 
+        #  The output of the final hidden layer is split into:
+        # -> mean of the action distribution 
+        # -> log standard deviation (log σ) 
         self.mean_layer = nn.Linear(256, action_dim)
         self.log_std_layer = nn.Linear(256, action_dim)
 
-# Actions will be scaled by this value to ensure they stay within valid bounds
+        # Actions will be scaled by this value to ensure they stay within valid bounds
         self.max_action = max_action 
 
 
@@ -45,17 +55,25 @@ class Actor(nn.Module):
         #  to prevent it from being too small (which could cause instability)
         #  or too large (which could make exploration too random).
         log_std = torch.clamp(log_std, LOG_STD_MIN, LOG_STD_MAX)
+<<<<<<< HEAD
 
+=======
+>>>>>>> main_eirini
         #  Convert log(σ) back to standard deviation (σ)
         std = log_std.exp()
 
         return mean, std
 
 
+<<<<<<< HEAD
     #  This is the function that samples an action
     #  based on the current state and the network's predicted distribution over actions
     # You define π(α|s)as a Gaussian distribution with mean μ(s) and standard deviation σ(s)
     # Then you sample through reparameterization
+=======
+        #  This is the function that samples an action
+        #  based on the current state and the network's predicted distribution over actions
+>>>>>>> main_eirini
     def sample(self, state):
         mean, std = self.forward(state)
         #  Creates a Gaussian distribution with the predicted mean and std.
@@ -84,18 +102,23 @@ class Actor(nn.Module):
 
 
 class Critic(nn.Module):
-        def __init__(self, state_dim, action_dim):
+        def __init__(self, state_dim, action_dim, name= 'critic', checkpoint= 'checkpoint'):
                 super(Critic, self).__init__()
 
                 # Q1 architecture
                 self.l1 = nn.Linear(state_dim + action_dim, 256)
                 self.l2 = nn.Linear(256, 256)
                 self.l3 = nn.Linear(256, 1)
+
                 # Q2 architecture
                 self.l4 = nn.Linear(state_dim + action_dim, 256)
                 self.l5 = nn.Linear(256, 256)
                 self.l6 = nn.Linear(256, 1)
 
+                self.name= name
+                self.checkpoint=checkpoint
+                self.checkpoint_file=os.path.join(self.checkpoint, name +'sac')
+                self.apply(weights_init)  # Initialize weights of the network
 
         def forward(self, state, action):
                 sa = torch.cat([state, action], 1)
@@ -109,6 +132,11 @@ class Critic(nn.Module):
                 q2 = self.l6(q2)
 
                 return q1, q2
+        
+        def save_checkpoint(self):
+                
+                torch.save(self.state_dict(), self.checkpoint_file)
+
         
         def Q1(self, state, action):
                 sa = torch.cat([state, action], 1)
