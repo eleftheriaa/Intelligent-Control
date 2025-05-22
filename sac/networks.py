@@ -60,33 +60,35 @@ class Actor(nn.Module):
 
         return mean, std
 
-
         #  This is the function that samples an action
         #  based on the current state and the network's predicted distribution over actions
+        # You define π(α|s)as a Gaussian distribution with mean μ(s) and standard deviation σ(s)
+        # Then you sample through reparameterization
     def sample(self, state):
         mean, std = self.forward(state)
         #  Creates a Gaussian distribution with the predicted mean and std.
         normal = torch.distributions.Normal(mean, std)
-        x_t = normal.rsample()  # reparameterization trick
-        y_t = torch.tanh(x_t)
+        x_t = normal.rsample()  # reparameterization trick x_t= mean+ std*epsilon
+        y_t = torch.tanh(x_t) #  The tanh function squashes the output to be between -1 and 1???????????????
+        #  The action is scaled by the max_action to ensure it stays within valid bounds???????
         action = y_t * self.max_action
 
-        # log prob with change of variables for tanh squashing
+        #  Computes the log-probability of the action under the Gaussian distribution
         log_prob = normal.log_prob(x_t)
+        #  1 - y_t.pow(2) is the derivative of tanh(z) (chain rule).
         log_prob -= torch.log(1 - y_t.pow(2) + 1e-6)
         log_prob = log_prob.sum(1, keepdim=True)
 
+        # A sampled, squashed, scaled action from the policy
+        # Its corrected log-probability, which is needed for the entropy term in SAC's policy loss
         return action, log_prob
 
-
-
-
+        #For the deterministic action, you can use the mean of the distribution
+        # This is the action that the policy would take without any noise
     def select_action(self, state):
         with torch.no_grad():
             mean, _ = self.forward(state)
             return torch.tanh(mean) * self.max_action
-
-
 
 
 class Critic(nn.Module):
@@ -142,3 +144,13 @@ class Critic(nn.Module):
                 self.load_state_dict(torch.load(self.checkpoint_file))
 
        
+        
+
+class Temperature(nn.Module):
+    def __init__(self, init_log_alpha=0.0):
+        super().__init__()
+        self.log_alpha = nn.Parameter(torch.tensor(init_log_alpha))
+
+    def forward(self):
+        return self.log_alpha.exp()
+
