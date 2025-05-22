@@ -117,3 +117,13 @@ class Critic(nn.Module):
                 q1 = F.relu(self.l2(q1))
                 q1 = self.l3(q1)
                 return q1
+        
+
+class Temperature(nn.Module):
+    def __init__(self, init_log_alpha=0.0):
+        super().__init__()
+        self.log_alpha = nn.Parameter(torch.tensor(init_log_alpha))
+
+    def forward(self):
+        return self.log_alpha.exp()
+
