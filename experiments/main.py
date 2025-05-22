@@ -6,7 +6,7 @@ from sac import Critic  # Add this import if Critic is defined in sac.py
 
 def main():
 
-    gym.register_envs(gymnasium_robotics)
+    #gym.register_envs(gymnasium_robotics)
     example_map = [[1, 1, 1, 1, 1],
         [1, 0, 0, 0, 1],
         [1, 1, 1, 1, 1]]
@@ -15,7 +15,7 @@ def main():
     env = gym.make('PointMaze_UMaze-v3', render_mode="human")
     env= RoboGymObservationWrapper(env)
     critic = Critic(1,1,1)
-    #obs = env.reset()
+    # obs = env.reset()
 
     # for _ in range(1000):
     #     action = env.action_space.sample()
