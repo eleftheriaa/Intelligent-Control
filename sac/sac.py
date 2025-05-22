@@ -16,9 +16,14 @@ class SAC(object):
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=actor_lr)
 
         # Critic networks and target networks
-        self.critic = Critic(state_dim, action_dim).to(self.device)
-        self.critic_target = copy.deepcopy(self.critic)
-        self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=critic_lr)
+        self.critic_1 = Critic(state_dim, action_dim).to(self.device)
+        self.critic_2 = Critic(state_dim, action_dim).to(self.device)
+        self.critic_target_1 = copy.deepcopy(self.critic_1)
+        self.critic_target_2 = copy.deepcopy(self.critic_2)
+
+        self.critic_optimizer = torch.optim.Adam(
+            list(self.critic_1.parameters()) + list(self.critic_2.parameters()), lr=critic_lr
+)
 
         # Temperature parameter (log_alpha is learnable)
         self.log_alpha = torch.tensor(0.0, requires_grad=True, device=self.device)
@@ -46,14 +51,26 @@ class SAC(object):
 
         # -------------------- Critic Update --------------------
         update_critic(
-            self.critic, self.critic_target, self.critic_optimizer,
-            self.actor, self.alpha, state, action, reward, next_state, 1 - not_done,
+            (self.critic_1, self.critic_2),
+            (self.critic_target_1, self.critic_target_2),
+            self.critic_optimizer,
+            self.actor,
+            self.alpha,
+            state,
+            action,
+            reward,
+            next_state,
+            1 - not_done,
             self.discount
         )
 
         # -------------------- Actor Update --------------------
         actor_loss, log_pi = update_actor(
-            self.actor, self.critic, self.actor_optimizer, self.alpha, state
+            self.actor,
+            (self.critic_1, self.critic_2),
+            self.actor_optimizer,
+            self.alpha,
+            state
         )
 
         # -------------------- Temperature Update --------------------
@@ -62,7 +79,7 @@ class SAC(object):
         )
 
         # -------------------- Target Network Update --------------------
-        soft_update(self.critic, self.critic_target, self.tau)
+        soft_update(self.critic_1,self.critic_target_1,  self.critic_2, self.critic_target_2, self.tau)
 
     def alpha(self):
         # exponentiates the log α value.

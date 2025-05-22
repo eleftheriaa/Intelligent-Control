@@ -21,10 +21,10 @@ from networks import Actor, Critic, Temperature
 from replay_buffer import ReplayBuffer
 
 
-def update_actor(actor, critic,actor_optimizer, temperature, state):
-
+def update_actor(actor, critics,actor_optimizer, temperature, state):
+    critic_1, critic_2 = critics
     new_action, log_pi = actor.sample(state) # samples action
-    q1, q2 = critic(state, new_action) # calculates the q values for this sampled action
+    q1, q2 = critic_1(state, new_action), critic_2(state, new_action)# calculates the q values for this sampled action
     q_min = torch.min(q1, q2) # finds the min between the q values
 
     # calculates actor loss
@@ -37,26 +37,30 @@ def update_actor(actor, critic,actor_optimizer, temperature, state):
 
     return actor_loss.item(), log_pi.detach()
 
-
-def update_critic(critic, critic_target,critic_optimizer, actor, temperature,  
+def update_critic(critics, critic_targets, critic_optimizer, actor, temperature,  
                   state, action, reward, next_state, done, gamma):
     
-    # targets for training -> no grads
+    critic_1, critic_2 = critics
+    critic_target_1, critic_target_2 = critic_targets
+
     with torch.no_grad():
         next_action, next_log_pi = actor.sample(next_state)
-        target_q1, target_q2 = critic_target(next_state, next_action)
+        target_q1 = critic_target_1(next_state, next_action)
+        target_q2 = critic_target_2(next_state, next_action)
         target_q = torch.min(target_q1, target_q2) - temperature() * next_log_pi
         target_value = reward + (1 - done) * gamma * target_q
 
-    # calculation of critic loss
-    current_q1, current_q2 = critic(state, action)
+    current_q1 = critic_1(state, action)
+    current_q2 = critic_2(state, action)
+
     critic_loss = F.mse_loss(current_q1, target_value) + F.mse_loss(current_q2, target_value)
-    # update critic
+
     critic_optimizer.zero_grad()
     critic_loss.backward()
     critic_optimizer.step()
 
     return critic_loss.item()
+
 
 def update_temperature(temperature, alpha_optimizer, log_pi, target_entropy):
     alpha_loss = -(temperature.log_alpha * (log_pi + target_entropy).detach()).mean()
@@ -67,6 +71,9 @@ def update_temperature(temperature, alpha_optimizer, log_pi, target_entropy):
 
     return alpha_loss.item()
 
-def soft_update(critic, critic_target, tau):
-    for param, target_param in zip(critic.parameters(), critic_target.parameters()):
+def soft_update(critic_1, critic_target_1, critic_2, critic_target_2, tau):
+    for param, target_param in zip(critic_1.parameters(), critic_target_1.parameters()):
+        target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
+    
+    for param, target_param in zip(critic_2.parameters(), critic_target_2.parameters()):
         target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
