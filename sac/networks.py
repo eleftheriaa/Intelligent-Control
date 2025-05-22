@@ -83,7 +83,7 @@ class Actor(nn.Module):
         # Its corrected log-probability, which is needed for the entropy term in SAC's policy loss
         return action, log_prob
 
-        #For the deterministic action, you can use the mean of the distribution
+        # For the deterministic action, you can use the mean of the distribution
         # This is the action that the policy would take without any noise
     def select_action(self, state):
         with torch.no_grad():

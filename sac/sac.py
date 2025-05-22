@@ -64,7 +64,7 @@ class SAC(object):
         )
 
         # -------------------- Actor Update --------------------
-        actor_loss, log_pi = update_actor(
+        _, log_pi = update_actor(
             self.actor,
             (self.critic_1, self.critic_2),
             self.actor_optimizer,
