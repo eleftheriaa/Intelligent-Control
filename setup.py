@@ -12,3 +12,7 @@ setup(
     #     'gymnasium-robotics',
     # ],
 )
+
+
+# pip install -e.
+# python experiments/main.py
