@@ -7,8 +7,8 @@ import numpy as np
 class ReplayBuffer(object):
 	def __init__(self, state_dim, action_dim, max_size=int(1e6)):
 		self.max_size = max_size # maximum number of transitions we can store
-		self.ptr = 0 # where to insert the next sample (circular buffer logic)
-		self.size = 0 # how many samples are currently in the buffer
+		self.ptr = 0 # where to insert the next sample 
+		self.size = 0 # how many samples are currently in the buffer (until it gets the max_size)
 
 		self.state = np.zeros((max_size, state_dim))
 		self.action = np.zeros((max_size, action_dim))
@@ -26,7 +26,7 @@ class ReplayBuffer(object):
 		self.reward[self.ptr] = reward
 		self.not_done[self.ptr] = 1. - done
 
-		self.ptr = (self.ptr + 1) % self.max_size
+		self.ptr = (self.ptr + 1) % self.max_size # (circular buffer logic)
 		self.size = min(self.size + 1, self.max_size)
 
 
