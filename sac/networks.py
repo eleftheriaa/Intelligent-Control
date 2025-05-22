@@ -121,11 +121,6 @@ class Critic(nn.Module):
 
                 return q1, q2
         
-        def save_checkpoint(self):
-                
-                torch.save(self.state_dict(), self.checkpoint_file)
-
-        
         def Q1(self, state, action):
                 sa = torch.cat([state, action], 1)
 
@@ -133,3 +128,17 @@ class Critic(nn.Module):
                 q1 = F.relu(self.l2(q1))
                 q1 = self.l3(q1)
                 return q1
+        
+        # Save progress
+        def save_checkpoint(self):
+                # Example Usage  
+                # model.load_state_dict(torch.load("actor_checkpoint.pth"))
+                # model.eval()  # Set to eval mode if you're not training
+
+                torch.save(self.state_dict(), self.checkpoint_file)
+
+        # Reload progress
+        def load_checkpoint(self):
+                self.load_state_dict(torch.load(self.checkpoint_file))
+
+       
