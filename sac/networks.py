@@ -55,25 +55,15 @@ class Actor(nn.Module):
         #  to prevent it from being too small (which could cause instability)
         #  or too large (which could make exploration too random).
         log_std = torch.clamp(log_std, LOG_STD_MIN, LOG_STD_MAX)
-<<<<<<< HEAD
-
-=======
->>>>>>> main_eirini
         #  Convert log(σ) back to standard deviation (σ)
         std = log_std.exp()
 
         return mean, std
 
-
-<<<<<<< HEAD
-    #  This is the function that samples an action
-    #  based on the current state and the network's predicted distribution over actions
-    # You define π(α|s)as a Gaussian distribution with mean μ(s) and standard deviation σ(s)
-    # Then you sample through reparameterization
-=======
         #  This is the function that samples an action
         #  based on the current state and the network's predicted distribution over actions
->>>>>>> main_eirini
+        # You define π(α|s)as a Gaussian distribution with mean μ(s) and standard deviation σ(s)
+        # Then you sample through reparameterization
     def sample(self, state):
         mean, std = self.forward(state)
         #  Creates a Gaussian distribution with the predicted mean and std.
@@ -83,9 +73,9 @@ class Actor(nn.Module):
         #  The action is scaled by the max_action to ensure it stays within valid bounds???????
         action = y_t * self.max_action
 
-#  Computes the log-probability of the action under the Gaussian distribution
+        #  Computes the log-probability of the action under the Gaussian distribution
         log_prob = normal.log_prob(x_t)
-#  1 - y_t.pow(2) is the derivative of tanh(z) (chain rule).
+        #  1 - y_t.pow(2) is the derivative of tanh(z) (chain rule).
         log_prob -= torch.log(1 - y_t.pow(2) + 1e-6)
         log_prob = log_prob.sum(1, keepdim=True)
 
@@ -93,8 +83,8 @@ class Actor(nn.Module):
         # Its corrected log-probability, which is needed for the entropy term in SAC's policy loss
         return action, log_prob
 
-    #For the deterministic action, you can use the mean of the distribution
-    # This is the action that the policy would take without any noise
+        #For the deterministic action, you can use the mean of the distribution
+        # This is the action that the policy would take without any noise
     def select_action(self, state):
         with torch.no_grad():
             mean, _ = self.forward(state)
