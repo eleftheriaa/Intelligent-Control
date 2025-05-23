@@ -26,7 +26,7 @@ class SAC(object):
 
         # Temperature parameter (log_alpha is learnable)
         self.alpha = Temperature().to(self.device)
-        self.alpha_optimizer = torch.optim.Adam([self.alpha], lr=alpha_lr)
+        self.alpha_optimizer = torch.optim.Adam(self.alpha.parameters(), lr=alpha_lr)
 
         # Entropy target
         if target_entropy is None:
