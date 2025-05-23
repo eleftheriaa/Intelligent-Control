@@ -71,7 +71,8 @@ class Actor(nn.Module):
         x_t = normal.rsample()  # reparameterization trick x_t= mean+ std*epsilon
         y_t = torch.tanh(x_t) #  The tanh function squashes the output to be between -1 and 1???????????????
         #  The action is scaled by the max_action to ensure it stays within valid bounds???????
-        action = y_t * self.max_action
+        
+        action = y_t * self.max_action # + self.bias
 
         #  Computes the log-probability of the action under the Gaussian distribution
         log_prob = normal.log_prob(x_t)
