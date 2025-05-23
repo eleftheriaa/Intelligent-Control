@@ -14,7 +14,7 @@ def main():
     # we are using sparse rewards
     env = gym.make('PointMaze_UMaze-v3', render_mode="human")
     env= RoboGymObservationWrapper(env)
-    critic = Critic(1,1,1)
+    #critic = Critic(1,1,1)
     # obs = env.reset()
 
     # for _ in range(1000):

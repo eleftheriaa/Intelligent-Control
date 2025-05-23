@@ -30,8 +30,9 @@ class ReplayBuffer(object):
 
 
 	def sample(self, batch_size):
+		#Buffer size and batch size is how many samples we want to sample
 		ind = np.random.randint(0, self.size, size=batch_size)
-
+		#Converts the 2D NumPy array to a PyTorch tensor
 		return (
 			torch.FloatTensor(self.state[ind]).to(self.device),
 			torch.FloatTensor(self.action[ind]).to(self.device),

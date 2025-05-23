@@ -28,7 +28,7 @@ def weights_init(m):
 class Actor(nn.Module):
 
 
-    def __init__(self, state_dim, action_dim, max_action):
+    def __init__(self, state_dim, action_dim, max_action, name= 'actor', checkpoint= 'checkpoint'):
         super(Actor, self).__init__()
         # Two fully connected hidden layers with 256 units each.
         self.l1 = nn.Linear(state_dim, 256)
@@ -42,6 +42,11 @@ class Actor(nn.Module):
 
         # Actions will be scaled by this value to ensure they stay within valid bounds
         self.max_action = max_action 
+
+        self.name= name
+        self.checkpoint=checkpoint
+        self.checkpoint_file=os.path.join(self.checkpoint, name +'sac')
+        self.apply(weights_init)  # Initialize weights of the network
 
 
 
@@ -83,12 +88,24 @@ class Actor(nn.Module):
         # Its corrected log-probability, which is needed for the entropy term in SAC's policy loss
         return action, log_prob
 
-        #For the deterministic action, you can use the mean of the distribution
-        # This is the action that the policy would take without any noise
+    # For the deterministic action, you can use the mean of the distribution
+    # This is the action that the policy would take without any noise
     def select_action(self, state):
         with torch.no_grad():
             mean, _ = self.forward(state)
             return torch.tanh(mean) * self.max_action
+    
+    # Save progress
+    def save_checkpoint(self):
+        # Example Usage  
+        # model.load_state_dict(torch.load("actor_checkpoint.pth"))
+        # model.eval()  # Set to eval mode if you're not training
+        torch.save(self.state_dict(), self.checkpoint_file)
+
+    # Reload progress
+    def load_checkpoint(self):
+        self.load_state_dict(torch.load(self.checkpoint_file))
+
 
 
 class Critic(nn.Module):
