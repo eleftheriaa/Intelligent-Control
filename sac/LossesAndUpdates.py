@@ -17,70 +17,60 @@
 import torch
 import torch.nn.functional as F
 
-class SACTrainer:
-    def __init__(self, actor, critics, critic_targets, temperature, 
-                 actor_optimizer, critic_optimizer, alpha_optimizer, 
-                 target_entropy, gamma=0.99, tau=0.005):
 
-        self.actor = actor
-        self.critic_1, self.critic_2 = critics
-        self.critic_target_1, self.critic_target_2 = critic_targets
-        self.temperature = temperature
+def update_actor(actor, critics,actor_optimizer, temperature, state):
+    critic_1, critic_2 = critics
+    new_action, log_pi = actor.sample(state) # samples action
+    q1, q2 = critic_1(state, new_action), critic_2(state, new_action)# calculates the q values for this sampled action
+    q_min = torch.min(q1, q2) # finds the min between the q values
 
-        self.actor_optimizer = actor_optimizer
-        self.critic_optimizer = critic_optimizer
-        self.alpha_optimizer = alpha_optimizer
+    # calculates actor loss
+    actor_loss = (temperature() * log_pi - q_min).mean()
 
-        self.target_entropy = target_entropy
-        self.gamma = gamma
-        self.tau = tau
+    # actor update
+    actor_optimizer.zero_grad()
+    actor_loss.backward()
+    actor_optimizer.step()
 
-    def update_actor(self, state):
-        new_action, log_pi = self.actor.sample(state)
-        q1 = self.critic_1(state, new_action)
-        q2 = self.critic_2(state, new_action)
-        q_min = torch.min(q1, q2)
+    return actor_loss.item(), log_pi.detach()
 
-        actor_loss = (self.temperature() * log_pi - q_min).mean()
+def update_critic(critics, critic_targets, critic_optimizer, actor, temperature,  
+                  state, action, reward, next_state, done, gamma):
+    
+    critic_1, critic_2 = critics
+    critic_target_1, critic_target_2 = critic_targets
 
-        self.actor_optimizer.zero_grad()
-        actor_loss.backward()
-        self.actor_optimizer.step()
+    with torch.no_grad():
+        next_action, next_log_pi = actor.sample(next_state)
+        target_q1 = critic_target_1(next_state, next_action)
+        target_q2 = critic_target_2(next_state, next_action)
+        target_q = torch.min(target_q1, target_q2) - temperature() * next_log_pi
+        target_value = reward + (1 - done) * gamma * target_q
 
-        return actor_loss.item(), log_pi.detach()
+    current_q1 = critic_1(state, action)
+    current_q2 = critic_2(state, action)
 
-    def update_critic(self, state, action, reward, next_state, done):
-        with torch.no_grad():
-            next_action, next_log_pi = self.actor.sample(next_state)
-            target_q1 = self.critic_target_1(next_state, next_action)
-            target_q2 = self.critic_target_2(next_state, next_action)
-            target_q = torch.min(target_q1, target_q2) - self.temperature() * next_log_pi
-            target_value = reward + (1 - done) * self.gamma * target_q
+    critic_loss = F.mse_loss(current_q1, target_value) + F.mse_loss(current_q2, target_value)
 
-        current_q1 = self.critic_1(state, action)
-        current_q2 = self.critic_2(state, action)
+    critic_optimizer.zero_grad()
+    critic_loss.backward()
+    critic_optimizer.step()
 
-        critic_loss = F.mse_loss(current_q1, target_value) + F.mse_loss(current_q2, target_value)
+    return critic_loss.item()
 
-        self.critic_optimizer.zero_grad()
-        critic_loss.backward()
-        self.critic_optimizer.step()
 
-        return critic_loss.item()
+def update_temperature(temperature, alpha_optimizer, log_pi, target_entropy):
+    alpha_loss = -(temperature.log_alpha * (log_pi + target_entropy).detach()).mean()
 
-    def update_temperature(self, log_pi):
-        alpha_loss = -(self.temperature.log_alpha * (log_pi + self.target_entropy).detach()).mean()
+    alpha_optimizer.zero_grad()
+    alpha_loss.backward()
+    alpha_optimizer.step()
 
-        self.alpha_optimizer.zero_grad()
-        alpha_loss.backward()
-        self.alpha_optimizer.step()
+    return alpha_loss.item()
 
-        return alpha_loss.item()
-
-    def soft_update_targets(self):
-        self._soft_update(self.critic_1, self.critic_target_1)
-        self._soft_update(self.critic_2, self.critic_target_2)
-
-    def _soft_update(self, critic, critic_target):
-        for param, target_param in zip(critic.parameters(), critic_target.parameters()):
-            target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
+def soft_update(critic_1, critic_target_1, critic_2, critic_target_2, tau):
+    for param, target_param in zip(critic_1.parameters(), critic_target_1.parameters()):
+        target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
+    
+    for param, target_param in zip(critic_2.parameters(), critic_target_2.parameters()):
+        target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
