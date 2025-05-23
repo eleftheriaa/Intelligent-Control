@@ -4,8 +4,9 @@ intelligent_control.egg-info/PKG-INFO
 intelligent_control.egg-info/SOURCES.txt
 intelligent_control.egg-info/dependency_links.txt
 intelligent_control.egg-info/top_level.txt
+sac/LossesAndUpdates.py
 sac/__init__.py
-sac/agent.py
 sac/networks.py
 sac/replay_buffer.py
+sac/sac.py
 sac/utils.py

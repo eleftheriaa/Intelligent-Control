@@ -3,8 +3,8 @@
 import torch
 import torch.nn.functional as F
 import copy
-from LossesAndUpdates import update_actor, update_critic, update_temperature, soft_update
-from networks import Actor, Critic, Temperature
+from .LossesAndUpdates import update_actor, update_critic, update_temperature, soft_update
+from .networks import Actor, Critic, Temperature
 
 class SAC(object):
     def __init__(self, state_dim, action_dim, max_action, 

@@ -3,6 +3,7 @@ import gymnasium_robotics
 import time 
 from gym_robotics_custom import RoboGymObservationWrapper
 from sac import Critic  # Add this import if Critic is defined in sac.py
+from sac import ReplayBuffer
 
 def main():
 
@@ -14,6 +15,11 @@ def main():
     # we are using sparse rewards
     env = gym.make('PointMaze_UMaze-v3', render_mode="human")
     env= RoboGymObservationWrapper(env)
+
+    buffer_size= 10
+    loop_size= 20
+
+    memory = ReplayBuffer (4, 2, buffer_size)
     #critic = Critic(1,1,1)
     # obs = env.reset()
 
