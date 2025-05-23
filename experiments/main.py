@@ -2,64 +2,73 @@ import gymnasium as gym
 import gymnasium_robotics
 import time 
 from gym_robotics_custom import RoboGymObservationWrapper
-from sac import Critic, SAC, ReplayBuffer  # Add this import if Critic is defined in sac.py
+from sac import SAC, ReplayBuffer
 
 def main():
-    episodes = 1000
+    episodes = 10
     steps_per_episode = 200
     batch_size = 256
-    start_timesteps = 10000  # use random actions initially
+    start_timesteps = 1000  # use random actions initially
     train_freq = 1
-    #gym.register_envs(gymnasium_robotics)
-    example_map = [[1, 1, 1, 1, 1],
+    example_map = [
+        [1, 1, 1, 1, 1],
         [1, 0, 0, 0, 1],
-        [1, 1, 1, 1, 1]]
+        [1, 1, 1, 1, 1]
+    ]
 
-    # we are using sparse rewards
-    env = gym.make('PointMaze_UMaze-v3', render_mode="human")
-    env= RoboGymObservationWrapper(env)
-    obs, _ = env.reset()
-    state_dim = obs['observation'].shape[0]
-    action_dim = env.action_space.shape[0]
-    max_action = float(env.action_space.high[0])  # assuming symmetric bounds
+    env = gym.make('PointMaze_UMaze-v3', maze_map=example_map, render_mode="human")
+    env = RoboGymObservationWrapper(env)
 
-    agent = SAC(state_dim, action_dim, max_action)
-    replay_buffer = ReplayBuffer(state_dim, action_dim)
     try:
+        print("Action space:", env.action_space)
+        print("Action high:", env.action_space.high)
+        print("Action low:", env.action_space.low)
+
+        obs, _ = env.reset()
+        print("State Dimensions:", obs[0].shape[0])
+
+        state_dim = obs[0].shape[0]
+        action_dim = env.action_space.shape[0]
+        max_action = float(env.action_space.high[0])
+
+        agent = SAC(state_dim, action_dim, max_action)
+        replay_buffer = ReplayBuffer(state_dim, action_dim)
+
         for episode in range(episodes):
             obs, _ = env.reset()
             episode_reward = 0
 
             for step in range(steps_per_episode):
-                state = obs['observation']
+                state = obs[0]
 
-                # Select action
                 if agent.total_it < start_timesteps:
                     action = env.action_space.sample()
                 else:
                     action = agent.select_action(state)
 
-                # Take environment step
-                next_obs, reward, terminated, truncated, _ = env.step(action)
+                next_obs, reward, terminated, truncated, _, _ = env.step(action)
+                reward = int(reward[0])
                 done = terminated or truncated
-                next_state = next_obs['observation']
+                next_state = next_obs[0]
 
-                # Store transition
                 replay_buffer.add(state, action, next_state, reward, float(done))
 
                 obs = next_obs
                 episode_reward += reward
 
-                # Train SAC agent
                 if agent.total_it >= start_timesteps:
+                    print("total iterations are being increased")
                     agent.train(replay_buffer, batch_size)
+
+                agent.total_it += 1
 
                 if done:
                     break
 
             print(f"Episode {episode} reward: {episode_reward}")
+
     finally:
-        env.close()
+        env.close()  
 
 if __name__ == "__main__":
     main()
