@@ -25,38 +25,41 @@ def main():
 
     agent = SAC(state_dim, action_dim, max_action)
     replay_buffer = ReplayBuffer(state_dim, action_dim)
-    for episode in range(episodes):
-        obs, _ = env.reset()
-        episode_reward = 0
+    try:
+        for episode in range(episodes):
+            obs, _ = env.reset()
+            episode_reward = 0
 
-        for step in range(steps_per_episode):
-            state = obs['observation']
+            for step in range(steps_per_episode):
+                state = obs['observation']
 
-            # Select action
-            if agent.total_it < start_timesteps:
-                action = env.action_space.sample()
-            else:
-                action = agent.select_action(state)
+                # Select action
+                if agent.total_it < start_timesteps:
+                    action = env.action_space.sample()
+                else:
+                    action = agent.select_action(state)
 
-            # Take environment step
-            next_obs, reward, terminated, truncated, _ = env.step(action)
-            done = terminated or truncated
-            next_state = next_obs['observation']
+                # Take environment step
+                next_obs, reward, terminated, truncated, _ = env.step(action)
+                done = terminated or truncated
+                next_state = next_obs['observation']
 
-            # Store transition
-            replay_buffer.add(state, action, next_state, reward, float(done))
+                # Store transition
+                replay_buffer.add(state, action, next_state, reward, float(done))
 
-            obs = next_obs
-            episode_reward += reward
+                obs = next_obs
+                episode_reward += reward
 
-            # Train SAC agent
-            if agent.total_it >= start_timesteps:
-                agent.train(replay_buffer, batch_size)
+                # Train SAC agent
+                if agent.total_it >= start_timesteps:
+                    agent.train(replay_buffer, batch_size)
 
-            if done:
-                break
+                if done:
+                    break
 
-        print(f"Episode {episode} reward: {episode_reward}")
+            print(f"Episode {episode} reward: {episode_reward}")
+    finally:
+        env.close()
 
 if __name__ == "__main__":
     main()
