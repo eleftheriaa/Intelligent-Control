@@ -22,12 +22,11 @@ class SAC(object):
         self.critic_target_2 = copy.deepcopy(self.critic_2)
 
         self.critic_optimizer = torch.optim.Adam(
-            list(self.critic_1.parameters()) + list(self.critic_2.parameters()), lr=critic_lr
-)
+            list(self.critic_1.parameters()) + list(self.critic_2.parameters()), lr=critic_lr)
 
         # Temperature parameter (log_alpha is learnable)
-        self.log_alpha = torch.tensor(0.0, requires_grad=True, device=self.device)
-        self.alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=alpha_lr)
+        self.alpha = Temperature().to(self.device)
+        self.alpha_optimizer = torch.optim.Adam([self.alpha], lr=alpha_lr)
 
         # Entropy target
         if target_entropy is None:
@@ -65,7 +64,7 @@ class SAC(object):
         )
 
         # -------------------- Actor Update --------------------
-        actor_loss, log_pi = update_actor(
+        _, log_pi = update_actor(
             self.actor,
             (self.critic_1, self.critic_2),
             self.actor_optimizer,
@@ -81,6 +80,4 @@ class SAC(object):
         # -------------------- Target Network Update --------------------
         soft_update(self.critic_1,self.critic_target_1,  self.critic_2, self.critic_target_2, self.tau)
 
-    def alpha(self):
-        # exponentiates the log α value.
-        return self.log_alpha.exp()
+    

@@ -17,9 +17,6 @@
 import torch
 import torch.nn.functional as F
 
-from .networks import Actor, Critic, Temperature
-from .replay_buffer import ReplayBuffer
-
 
 def update_actor(actor, critics,actor_optimizer, temperature, state):
     critic_1, critic_2 = critics

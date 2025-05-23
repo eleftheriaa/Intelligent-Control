@@ -76,7 +76,8 @@ class Actor(nn.Module):
         x_t = normal.rsample()  # reparameterization trick x_t= mean+ std*epsilon
         y_t = torch.tanh(x_t) #  The tanh function squashes the output to be between -1 and 1???????????????
         #  The action is scaled by the max_action to ensure it stays within valid bounds???????
-        action = y_t * self.max_action
+        
+        action = y_t * self.max_action # + self.bias
 
         #  Computes the log-probability of the action under the Gaussian distribution
         log_prob = normal.log_prob(x_t)
@@ -88,8 +89,8 @@ class Actor(nn.Module):
         # Its corrected log-probability, which is needed for the entropy term in SAC's policy loss
         return action, log_prob
 
-    # For the deterministic action, you can use the mean of the distribution
-    # This is the action that the policy would take without any noise
+        # For the deterministic action, you can use the mean of the distribution
+        # This is the action that the policy would take without any noise
     def select_action(self, state):
         with torch.no_grad():
             mean, _ = self.forward(state)
