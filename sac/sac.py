@@ -8,21 +8,20 @@ from .networks import Actor, Critic, Temperature
 
 class SAC(object):
     def __init__(self, state_dim, action_dim, max_action, 
-                 discount=0.99, tau=0.005, actor_lr=3e-4, critic_lr=3e-4, alpha_lr=3e-4, target_entropy=None):
+                 gamma=0.99, tau=0.005, actor_lr=3e-4, critic_lr=3e-4, alpha_lr=3e-4, target_entropy=None):
+        
+        # Training neural networks on GPU is often 10× to 100× faster than CPU
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        print(f"Using device: {self.device}")
 
         # Actor network and optimizer
         self.actor = Actor(state_dim, action_dim, max_action).to(self.device)
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=actor_lr)
 
         # Critic networks and target networks
-        self.critic_1 = Critic(state_dim, action_dim).to(self.device)
-        self.critic_2 = Critic(state_dim, action_dim).to(self.device)
-        self.critic_target_1 = copy.deepcopy(self.critic_1)
-        self.critic_target_2 = copy.deepcopy(self.critic_2)
-
-        self.critic_optimizer = torch.optim.Adam(
-            list(self.critic_1.parameters()) + list(self.critic_2.parameters()), lr=critic_lr)
+        self.critic = Critic(state_dim, action_dim).to(self.device)
+        self.critic_target = copy.deepcopy(self.critic)
+        self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=critic_lr)
 
         # Temperature parameter (log_alpha is learnable)
         self.alpha = Temperature().to(self.device)
@@ -35,13 +34,21 @@ class SAC(object):
             self.target_entropy = target_entropy
 
         self.max_action = max_action
-        self.discount = discount
+        self.gamma = gamma
         self.tau = tau
         self.total_it = 0
 
-    def select_action(self, state):
+    def select_action(self, state, evaluate=False):
+        
         state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
-        return self.actor.select_action(state).cpu().numpy()[0]
+        if evaluate is False:
+            action, _= self.actor.sample(state)
+        else:
+            # We want consistent behavior
+            action= self.actor.select_action(state)
+
+        # Υou can't call .numpy() on a GPU tensor.
+        return action.detach().cpu().numpy()[0]
 
     def train(self, replay_buffer, batch_size=256):
         self.total_it += 1
@@ -60,7 +67,7 @@ class SAC(object):
             reward,
             next_state,
             1 - not_done,
-            self.discount
+            self.gamma
         )
 
         # -------------------- Actor Update --------------------

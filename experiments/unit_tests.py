@@ -1,7 +1,7 @@
 from sac import ReplayBuffer
 
 class UnitTests:
-    
+
     def replay_buffer(self):
         buffer_size = 10
         loop_size = 20
@@ -12,4 +12,7 @@ class UnitTests:
 
         print("Testing to ensure the first state memory is correct.")
         assert memory.state[0][0] == 10
+
+        print("Testing to ensure the last state memory is correct.")
+        assert memory.state[-1][0] == 19
         print("Test Successful\n")

@@ -27,7 +27,6 @@ def weights_init(m):
 #  Gaussian Policy (Actor)
 class Actor(nn.Module):
 
-
     def __init__(self, state_dim, action_dim, max_action, name= 'actor', checkpoint= 'checkpoint'):
         super(Actor, self).__init__()
         # Two fully connected hidden layers with 256 units each.
@@ -49,7 +48,6 @@ class Actor(nn.Module):
         self.apply(weights_init)  # Initialize weights of the network
 
 
-
     def forward(self, state):
         x = F.relu(self.l1(state))
         x = F.relu(self.l2(x))
@@ -65,8 +63,8 @@ class Actor(nn.Module):
 
         return mean, std
 
-        #  This is the function that samples an action
-        #  based on the current state and the network's predicted distribution over actions
+        # This is the function that samples an action
+        # based on the current state and the network's predicted distribution over actions
         # You define π(α|s)as a Gaussian distribution with mean μ(s) and standard deviation σ(s)
         # Then you sample through reparameterization
     def sample(self, state):
@@ -89,8 +87,8 @@ class Actor(nn.Module):
         # Its corrected log-probability, which is needed for the entropy term in SAC's policy loss
         return action, log_prob
 
-        # For the deterministic action, you can use the mean of the distribution
-        # This is the action that the policy would take without any noise
+    # For the deterministic action, you can use the mean of the distribution
+    # This is the action that the policy would take without any noise
     def select_action(self, state):
         with torch.no_grad():
             mean, _ = self.forward(state)
