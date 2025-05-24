@@ -1,5 +1,5 @@
 # this file implemetns the SAC algorithm
-
+import os
 import torch
 import torch.nn.functional as F
 import copy
@@ -7,6 +7,9 @@ from .LossesAndUpdates import update_actor, update_critic, update_temperature, s
 from .networks import Actor, Critic, Temperature
 
 class SAC(object):
+
+ # -------------------- SAC --------------------
+
     def __init__(self, state_dim, action_dim, max_action, 
                  gamma=0.99, tau=0.005, actor_lr=3e-4, critic_lr=3e-4, alpha_lr=3e-4, target_entropy=None):
         
@@ -38,13 +41,16 @@ class SAC(object):
         self.tau = tau
         self.total_it = 0
 
+
+# -------------------- SAC Methods--------------------
+
     def select_action(self, state, evaluate=False):
-        
         state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
         if evaluate is False:
+            # We are training
             action, _= self.actor.sample(state)
         else:
-            # We want consistent behavior
+            # We are evaluating, we want consistent behavior
             action= self.actor.select_action(state)
 
         # Υou can't call .numpy() on a GPU tensor.
@@ -56,7 +62,7 @@ class SAC(object):
         state, action, next_state, reward, not_done = replay_buffer.sample(batch_size)
 
         # -------------------- Critic Update --------------------
-        update_critic(
+        critic_loss= update_critic(
             (self.critic_1, self.critic_2),
             (self.critic_target_1, self.critic_target_2),
             self.critic_optimizer,
@@ -71,7 +77,7 @@ class SAC(object):
         )
 
         # -------------------- Actor Update --------------------
-        _, log_pi = update_actor(
+        actor_loss, log_pi = update_actor(
             self.actor,
             (self.critic_1, self.critic_2),
             self.actor_optimizer,
@@ -80,11 +86,43 @@ class SAC(object):
         )
 
         # -------------------- Temperature Update --------------------
-        update_temperature(
+        alpha_loss= update_temperature(
             self.alpha, self.alpha_optimizer, log_pi, self.target_entropy
         )
 
         # -------------------- Target Network Update --------------------
         soft_update(self.critic_1,self.critic_target_1,  self.critic_2, self.critic_target_2, self.tau)
+       
+        return actor_loss, critic_loss, alpha_loss
 
-    
+    def save_checkpoint(self):
+        if not os.path.exists('checkpoints/'):
+            os.makedirs('checkpoints/')
+
+        print('Saving models...')
+        self.actor.save_checkpoint()
+        self.critic_target.save_checkpoint()
+        self.critic.save_checkpoint()
+
+    def load_checkpoint(self, evaluate=False):
+
+        try:
+            print('Loading models...')
+            self.actor.load_checkpoint()
+            self.critic.load_checkpoint()
+            self.critic_target.load_checkpoint()
+            print('Successfully loaded models')
+        except:
+            if(evaluate):
+                raise Exception("Unable to evaluate models without a loaded checkpoint")
+            else:
+                print("Unable to load models. Starting from scratch")
+
+        if evaluate:
+            self.actor.eval()
+            self.critic.eval()
+            self.critic_target.eval()
+        else:
+            self.actor.train()
+            self.critic.train()
+            self.critic_target.train()

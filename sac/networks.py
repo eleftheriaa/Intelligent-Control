@@ -20,7 +20,7 @@ def weights_init(m):
     if isinstance(m, nn.Linear):
         # It draws from a uniform distribution designed to keep stable gradients
         torch.nn.init.xavier_uniform_(m.weight, gain=1)
-         #Sets all bias terms initial to zero 
+        # Sets all bias terms initial to zero 
         torch.nn.init.constant_(m.bias, 0)
 
 
@@ -67,6 +67,7 @@ class Actor(nn.Module):
         # based on the current state and the network's predicted distribution over actions
         # You define π(α|s)as a Gaussian distribution with mean μ(s) and standard deviation σ(s)
         # Then you sample through reparameterization
+    
     def sample(self, state):
         mean, std = self.forward(state)
         #  Creates a Gaussian distribution with the predicted mean and std.
@@ -104,7 +105,6 @@ class Actor(nn.Module):
     # Reload progress
     def load_checkpoint(self):
         self.load_state_dict(torch.load(self.checkpoint_file))
-
 
 
 class Critic(nn.Module):
@@ -160,8 +160,6 @@ class Critic(nn.Module):
                 self.load_state_dict(torch.load(self.checkpoint_file))
 
        
-        
-
 class Temperature(nn.Module):
     def __init__(self, init_log_alpha=0.0):
         super().__init__()
