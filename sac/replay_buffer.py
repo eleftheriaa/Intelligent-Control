@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
+# Basically contains multiple arrays that share the same indices for transitions
 class ReplayBuffer(object):
 	def __init__(self, state_dim, action_dim, max_size=int(1e6)):
 		self.max_size = max_size # maximum number of transitions we can store
