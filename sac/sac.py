@@ -105,6 +105,7 @@ class SAC(object):
     
 
 def training(self,env,env_name,memory: ReplayBuffer,episodes,batch_size,updates_per_step,summary_writer_name="",max_episode_steps=100):
+   
     warmup= 20
     #TensorBoard
     summary_writer_name= f'runs/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_' + summary_writer_name
@@ -133,12 +134,32 @@ def training(self,env,env_name,memory: ReplayBuffer,episodes,batch_size,updates_
                 else:
                     action = self.select_action(state)
                 
+                #if you can sample, go do training, graph the results , come back
                 if memory.can_sample(batch_size=batch_size):
                     for i in range(updates_per_step):
                         actor_loss, critic_loss, alpha_loss = self.update_parameters(memory, updates, batch_size)
-                        
+                        # Tensorboard
+                        writer.add_scalar('loss/critic_overall', critic_loss, updates)
+                        writer.add_scalar('loss/policy', actor_loss, updates)
+
+                next_state, next_observation, reward, done, _, _ = env.step(action)
+
+                episode_steps += 1
+                total_numsteps += 1
+                episode_reward += reward
+
+                done = 1 if episode_steps == max_episode_steps else float(not done)
+                memory.add(state, action, next_state, reward, float(done))
+                state= next_state
+
+            writer.add_scalar('reward/train', episode_reward, episode)
+            print(f"Episode: {episode}, total numsteps: {total_numsteps}, episode steps: {episode_steps}, reward: {round(episode_reward, 2)}")
+
+            if episode % 10 == 0:
+                self.save_checkpoint()
+
      
-     # -------------------- Save/ Load --------------------                                                                                                       updates)
+     # -------------------- Save/Load --------------------                                                                                                       updates)
 def save_checkpoint(self):
     if not os.path.exists('checkpoints/'):
         os.makedirs('checkpoints/')
