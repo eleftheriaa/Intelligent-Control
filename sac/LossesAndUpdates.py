@@ -13,9 +13,12 @@
 # state, action, reward, next_state, done: batched tensors from the replay buffer.
 # *
 # gamma: discount factor (e.g., 0.99)
-
+from torch.utils.tensorboard import SummaryWriter
+from .replay_buffer import ReplayBuffer
+import datetime
 import torch
 import torch.nn.functional as F
+import numpy as np
 
 def update_actor(actor, critics, actor_optimizer, temperature, state):
     
@@ -34,7 +37,7 @@ def update_actor(actor, critics, actor_optimizer, temperature, state):
     return actor_loss.item(), log_pi.detach()
 
 def update_critic(critics, critic_targets, critic_optimizer, actor, temperature,  
-                  state, action, reward, next_state, done, gamma):
+                  state, action, reward, next_state, done, gamma, target_update_interval, updates, tau):
     
     with torch.no_grad():
         next_action, next_log_pi = actor.sample(next_state)
@@ -51,6 +54,9 @@ def update_critic(critics, critic_targets, critic_optimizer, actor, temperature,
     critic_optimizer.zero_grad()
     critic_loss.backward()
     critic_optimizer.step()
+
+    if updates % target_update_interval == 0:
+            soft_update(critic_targets, critics, tau)
 
     return critic_loss.item()
 
