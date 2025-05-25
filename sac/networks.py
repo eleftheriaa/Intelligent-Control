@@ -27,7 +27,7 @@ def weights_init(m):
 #  Gaussian Policy (Actor)
 class Actor(nn.Module):
 
-    def __init__(self, state_dim, action_dim, max_action, name= 'actor', checkpoint= 'checkpoint'):
+    def __init__(self, state_dim, action_dim, max_action, name= 'actor', checkpoints= 'checkpoints'):
         super(Actor, self).__init__()
         # Two fully connected hidden layers with 256 units each.
         self.l1 = nn.Linear(state_dim, 256)
@@ -43,8 +43,8 @@ class Actor(nn.Module):
         self.max_action = max_action 
 
         self.name= name
-        self.checkpoint=checkpoint
-        self.checkpoint_file=os.path.join(self.checkpoint, name +'sac')
+        self.checkpoints=checkpoints
+        self.checkpoints_file=os.path.join(self.checkpoints, name +'sac')
         self.apply(weights_init)  # Initialize weights of the network
 
 
@@ -100,15 +100,16 @@ class Actor(nn.Module):
         # Example Usage  
         # model.load_state_dict(torch.load("actor_checkpoint.pth"))
         # model.eval()  # Set to eval mode if you're not training
-        torch.save(self.state_dict(), self.checkpoint_file)
+        #print("Dictionary", self.state_dict())
+        torch.save(self.state_dict(), self.checkpoints_file)
 
     # Reload progress
     def load_checkpoint(self):
-        self.load_state_dict(torch.load(self.checkpoint_file))
+        self.load_state_dict(torch.load(self.checkpoints_file))
 
 
 class Critic(nn.Module):
-        def __init__(self, state_dim, action_dim, name= 'critic', checkpoint= 'checkpoint'):
+        def __init__(self, state_dim, action_dim, name= 'critic', checkpoints= 'checkpoints'):
                 super(Critic, self).__init__()
 
                 # Q1 architecture
@@ -122,8 +123,8 @@ class Critic(nn.Module):
                 self.l6 = nn.Linear(256, 1)
 
                 self.name= name
-                self.checkpoint=checkpoint
-                self.checkpoint_file=os.path.join(self.checkpoint, name +'sac')
+                self.checkpoints=checkpoints
+                self.checkpoints_file=os.path.join(self.checkpoints, name +'sac')
                 self.apply(weights_init)  # Initialize weights of the network
 
         def forward(self, state, action):
@@ -152,12 +153,12 @@ class Critic(nn.Module):
                 # Example Usage  
                 # model.load_state_dict(torch.load("actor_checkpoint.pth"))
                 # model.eval()  # Set to eval mode if you're not training
-
-                torch.save(self.state_dict(), self.checkpoint_file)
+                #the state__dict produces a dict with 4 inputs and 254 outputs for linear1
+                torch.save(self.state_dict(), self.checkpoints_file)
 
         # Reload progress
         def load_checkpoint(self):
-                self.load_state_dict(torch.load(self.checkpoint_file))
+                self.load_state_dict(torch.load(self.checkpoints_file))
 
        
 class Temperature(nn.Module):

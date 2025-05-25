@@ -1,5 +1,7 @@
 from sac import ReplayBuffer
 from sac import SAC
+from gym_robotics_custom import RoboGymObservationWrapper
+import gymnasium as gym
 
 class UnitTests:
 
@@ -34,18 +36,41 @@ class UnitTests:
         max_episode_steps = 100
         exploration_scaling_factor=1.5
 
-        agent= SAC (
-            state_dim=4,
-            action_dim=2,
-            gamma=gamma,
-            tau=tau,
-            max_action=1.0,
-            actor_lr=learning_rate,
-            critic_lr=learning_rate,
-            alpha_lr=learning_rate,
-            target_update_interval= target_update_interval,
-            target_entropy=None
-        )
+        example_map = [
+        [1, 1, 1, 1, 1],
+        [1, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1]
+        ]
 
-        memory= ReplayBuffer(4, 2, replay_buffer_size)
+        env = gym.make('PointMaze_UMaze-v3', maze_map=example_map, render_mode="human")
+        env = RoboGymObservationWrapper(env)
+
+        try:
+            agent= SAC (
+                state_dim=4,
+                action_dim=2,
+                gamma=gamma,
+                tau=tau,
+                max_action=1.0,
+                actor_lr=learning_rate,
+                critic_lr=learning_rate,
+                alpha_lr=learning_rate,
+                target_update_interval= target_update_interval,
+                target_entropy=None
+            )
+
+            memory= ReplayBuffer(4, 2, replay_buffer_size)
+
+            agent.training(
+                env=env,  # Replace with actual environment
+                env_name=env_name,
+                memory=memory,
+                episodes=episodes,
+                batch_size=batch_size,
+                updates_per_step=updates_per_step,
+                summary_writer_name="straight maze",
+                max_episode_steps=max_episode_steps
+            )
         
+        finally:
+            env.close() 
