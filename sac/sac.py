@@ -122,7 +122,7 @@ class SAC(object):
                 state, obs, _ = env.reset(options={"goal_cell": fixed_goal_cell})
                 episode_reward = 0
                 episodes = 10
-                steps_per_episode = 200
+                steps_per_episode = 0
                 batch_size = 256
                 done= False
                 start_timesteps = 1000  # use random actions initially
@@ -149,8 +149,8 @@ class SAC(object):
                     total_numsteps += 1
                     episode_reward += reward
 
-                    done = 1 if steps_per_episode == max_episode_steps else float(not done)
-                    memory.add(state, action, next_state, reward, float(done))
+                    flag = 1 if steps_per_episode == max_episode_steps else float(not done)
+                    memory.add(state, action, next_state, reward, flag)
                     state= next_state
 
                 writer.add_scalar('reward/train', episode_reward, episode)

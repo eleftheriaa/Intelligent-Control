@@ -23,7 +23,7 @@ class UnitTests:
     def main2(self):
     
         replay_buffer_size = 1000000
-        episodes = 1000
+        episodes = 100
         batch_size = 64
         updates_per_step = 4
         gamma = 0.99
