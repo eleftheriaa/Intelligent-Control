@@ -8,7 +8,7 @@ def main():
     episodes = 10
     steps_per_episode = 200
     batch_size = 256
-    start_timesteps = 100  # use random actions initially
+    start_timesteps = 1000  # use random actions initially
     train_freq = 1
     #gym.register_envs(gymnasium_robotics)
     example_map = [[1, 1, 1, 1, 1],
