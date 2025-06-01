@@ -27,7 +27,7 @@ def update_actor(actor, critics, actor_optimizer, temperature, state):
     q_min = torch.min(q1, q2) # finds the min between the q values
 
     # calculates actor loss
-    actor_loss = (temperature() * log_pi - q_min).mean()
+    actor_loss = (temperature * log_pi - q_min).mean()
 
     # actor update
     actor_optimizer.zero_grad()
@@ -43,7 +43,7 @@ def update_critic(critics, critic_targets, critic_optimizer, actor, temperature,
         next_action, next_log_pi = actor.sample(next_state)
         # Critic's forward returns 2 networks q1, q2
         target_q1, target_q2 = critic_targets(next_state, next_action)
-        target_q = torch.min(target_q1, target_q2) - temperature() * next_log_pi
+        target_q = torch.min(target_q1, target_q2) - temperature * next_log_pi
         target_value = reward + (1 - done) * gamma * target_q
 
     current_q1,current_q2 = critics(state, action)
@@ -56,7 +56,7 @@ def update_critic(critics, critic_targets, critic_optimizer, actor, temperature,
     critic_optimizer.step()
 
     if updates % target_update_interval == 0:
-            soft_update(critic_targets, critics, tau)
+        soft_update(critic_targets, critics, tau)
 
     return critic_loss.item()
 

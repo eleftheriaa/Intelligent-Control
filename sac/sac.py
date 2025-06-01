@@ -87,25 +87,26 @@ class SAC(object):
         # -------------------- Actor Update --------------------
         actor_loss, log_pi = update_actor(
             self.actor,
-            (self.critic,),
+            (self.critic),
             self.actor_optimizer,
             self.alpha,
             state
         )
 
         # -------------------- Temperature Update --------------------
-        alpha_loss= update_temperature(
-            self.alpha, self.alpha_optimizer, log_pi, self.target_entropy
-        )
+        # alpha_loss= update_temperature(
+        #     self.alpha, self.alpha_optimizer, log_pi, self.target_entropy
+        # )
 
         # -------------------- Target Network Update --------------------
         soft_update(self.critic, self.critic_target, self.tau)
        
-        return actor_loss, critic_loss, alpha_loss
+        return actor_loss, critic_loss#, alpha_loss
     
 
-    def training(self,env,env_name,memory: ReplayBuffer,episodes,batch_size,updates_per_step,summary_writer_name="",max_episode_steps=100):
-    
+    def training(self,env, env_name, memory: ReplayBuffer, episodes, batch_size, updates_per_step, summary_writer_name="", max_episode_steps=100):
+
+        # warmup_episodes
         warmup= 20
         #TensorBoard
         summary_writer_name= f'runs/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_' + summary_writer_name
@@ -115,33 +116,34 @@ class SAC(object):
         total_numsteps = 0
         updates = 0
 
+        # on enery episode the red ball stays in the same pos
         fixed_goal_cell = np.array([3, 4])  # row 3, column 4
-        state, obs, info = env.reset(options={"goal_cell": fixed_goal_cell})
+
+        # state, obs, info = env.reset(options={"goal_cell": fixed_goal_cell})
 
         for episode in range(episodes):
                 state, obs, _ = env.reset(options={"goal_cell": fixed_goal_cell})
-                episode_reward = 0
-                episodes = 10
+                episode_reward = 0      
                 steps_per_episode = 0
-                batch_size = 256
                 done= False
-                start_timesteps = 1000  # use random actions initially
-                train_freq = 1
 
                 while not done and steps_per_episode < max_episode_steps:
                     
                     if warmup>episode:
+                        # gym method that initialises ranndom action
                         action = env.action_space.sample()
                     else:
                         action = self.select_action(state)
+
                     
                     #if you can sample, go do training, graph the results , come back
                     if memory.can_sample(batch_size=batch_size):
                         for i in range(updates_per_step):
-                            actor_loss, critic_loss, alpha_loss = self.update_parameters(memory, updates, batch_size)
+                            actor_loss, critic_loss= self.update_parameters(memory, updates, batch_size)
                             # Tensorboard
                             writer.add_scalar('loss/critic_overall', critic_loss, updates)
                             writer.add_scalar('loss/policy', actor_loss, updates)
+                            updates += 1
 
                     next_state, next_observation, reward, done, _, _ = env.step(action)
 
