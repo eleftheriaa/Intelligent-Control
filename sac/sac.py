@@ -1,32 +1,43 @@
 # this file implemetns the SAC algorithm
-
+import os
 import torch
 import torch.nn.functional as F
 import copy
-from LossesAndUpdates import update_actor, update_critic, update_temperature, soft_update
-from networks import Actor, Critic, Temperature
+import datetime
+import numpy as np
+from torch.utils.tensorboard import SummaryWriter
+from .replay_buffer import ReplayBuffer
+from .LossesAndUpdates import update_actor, update_critic, update_temperature, soft_update
+from .networks import Actor, Critic, Temperature, PredictiveModel
 
 class SAC(object):
-    def __init__(self, state_dim, action_dim, max_action, 
-                 discount=0.99, tau=0.005, actor_lr=3e-4, critic_lr=3e-4, alpha_lr=3e-4, target_entropy=None):
+
+ # -------------------- SAC --------------------
+
+    def __init__(self, state_dim, action_dim, max_action,hidden_size, exploration_scaling_factor,
+                 gamma=0.99, tau=0.005, lr=3e-4,target_update_interval=1, target_entropy=None):
+        self.max_action = max_action
+        self.gamma = gamma
+        self.tau = tau
+        self.total_it = 0
+        self.target_update_interval = target_update_interval
+        # Training neural networks on GPU is often 10× to 100× faster than CPU
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        print(f"Using device: {self.device}")
 
         # Actor network and optimizer
         self.actor = Actor(state_dim, action_dim, max_action).to(self.device)
-        self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=actor_lr)
+        self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=lr)
 
         # Critic networks and target networks
-        self.critic_1 = Critic(state_dim, action_dim).to(self.device)
-        self.critic_2 = Critic(state_dim, action_dim).to(self.device)
-        self.critic_target_1 = copy.deepcopy(self.critic_1)
-        self.critic_target_2 = copy.deepcopy(self.critic_2)
-
-        self.critic_optimizer = torch.optim.Adam(
-            list(self.critic_1.parameters()) + list(self.critic_2.parameters()), lr=critic_lr)
+        self.critic = Critic(state_dim, action_dim).to(self.device)
+        self.critic_target = copy.deepcopy(self.critic)
+        self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=lr)
 
         # Temperature parameter (log_alpha is learnable)
-        self.alpha = Temperature().to(self.device)
-        self.alpha_optimizer = torch.optim.Adam(self.alpha.parameters(), lr=alpha_lr)
+        #self.alpha = Temperature().to(self.device)
+        #self.alpha_optimizer = torch.optim.Adam(self.alpha.parameters(), lr=alpha_lr)
+        self.alpha=0.12
 
         # Entropy target
         if target_entropy is None:
@@ -34,24 +45,37 @@ class SAC(object):
         else:
             self.target_entropy = target_entropy
 
-        self.max_action = max_action
-        self.discount = discount
-        self.tau = tau
-        self.total_it = 0
+        # Initialise the predictive model
+        self.predictive_model = PredictiveModel(num_inputs=state_dim, num_actions=action_dim,hidden_dim=hidden_size)
+        self.predictive_model_optim = torch.optim.Adam(self.predictive_model.parameters(), lr=lr)
+        self.exploration_factor = exploration_scaling_factor
 
-    def select_action(self, state):
+
+
+
+# -------------------- SAC Methods--------------------
+
+    def select_action(self, state, evaluate=False):
         state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
-        return self.actor.select_action(state).cpu().numpy()[0]
+        if evaluate is False:
+            # We are training
+            action, _= self.actor.sample(state)
+        else:
+            # We are evaluating, we want consistent behavior
+            action= self.actor.select_action(state)
 
-    def train(self, replay_buffer, batch_size=256):
+        # Υou can't call .numpy() on a GPU tensor.
+        return action.detach().cpu().numpy()[0]
+
+    def update_parameters(self, replay_buffer, updates, batch_size=256):
         self.total_it += 1
 
         state, action, next_state, reward, not_done = replay_buffer.sample(batch_size)
 
         # -------------------- Critic Update --------------------
-        update_critic(
-            (self.critic_1, self.critic_2),
-            (self.critic_target_1, self.critic_target_2),
+        critic_loss= update_critic(
+            self.critic,
+            self.critic_target,
             self.critic_optimizer,
             self.actor,
             self.alpha,
@@ -60,24 +84,129 @@ class SAC(object):
             reward,
             next_state,
             1 - not_done,
-            self.discount
+            self.gamma,
+            self.target_update_interval,
+            updates,
+            self.tau
         )
 
         # -------------------- Actor Update --------------------
-        _, log_pi = update_actor(
+        actor_loss, log_pi = update_actor(
             self.actor,
-            (self.critic_1, self.critic_2),
+            (self.critic),
             self.actor_optimizer,
             self.alpha,
             state
         )
 
         # -------------------- Temperature Update --------------------
-        update_temperature(
-            self.alpha, self.alpha_optimizer, log_pi, self.target_entropy
-        )
+        # alpha_loss= update_temperature(
+        #     self.alpha, self.alpha_optimizer, log_pi, self.target_entropy
+        # )
 
         # -------------------- Target Network Update --------------------
-        soft_update(self.critic_1,self.critic_target_1,  self.critic_2, self.critic_target_2, self.tau)
+        soft_update(self.critic, self.critic_target, self.tau)
+       
 
+
+        # Predictive Model
+        predictive_next_state = self.predictive_model(state, action)
+        prediction_error=F.mse_loss(predictive_next_state, next_state)
+        prediction_error_no_reduction = F.mse_loss(predictive_next_state, next_state, reduce=False)
+
+
+
+
+        return actor_loss, critic_loss#, alpha_loss
     
+
+    def training(self,env, env_name, memory: ReplayBuffer, episodes, batch_size, updates_per_step, summary_writer_name="", max_episode_steps=100):
+
+        # warmup_episodes
+        warmup= 20
+        #TensorBoard
+        summary_writer_name= f'runs/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_' + summary_writer_name
+        writer = SummaryWriter(summary_writer_name)
+
+        # Training Loop
+        total_numsteps = 0
+        updates = 0
+
+        # on enery episode the red ball stays in the same pos
+        fixed_goal_cell = np.array([3, 4])  # row 3, column 4
+
+        # state, obs, info = env.reset(options={"goal_cell": fixed_goal_cell})
+
+        for episode in range(episodes):
+                state, obs, _ = env.reset(options={"goal_cell": fixed_goal_cell})
+                episode_reward = 0      
+                steps_per_episode = 0
+                done= False
+
+                while not done and steps_per_episode < max_episode_steps:
+                    
+                    if warmup>episode:
+                        # gym method that initialises ranndom action
+                        action = env.action_space.sample()
+                    else:
+                        action = self.select_action(state)
+
+                    
+                    #if you can sample, go do training, graph the results , come back
+                    if memory.can_sample(batch_size=batch_size):
+                        for i in range(updates_per_step):
+                            actor_loss, critic_loss= self.update_parameters(memory, updates, batch_size)
+                            # Tensorboard
+                            writer.add_scalar('loss/critic_overall', critic_loss, updates)
+                            writer.add_scalar('loss/policy', actor_loss, updates)
+                            updates += 1
+
+                    next_state, next_observation, reward, done, _, _ = env.step(action)
+
+                    steps_per_episode += 1
+                    total_numsteps += 1
+                    episode_reward += reward
+
+                    flag = 1 if steps_per_episode == max_episode_steps else float(not done)
+                    memory.add(state, action, next_state, reward, flag)
+                    state= next_state
+
+                writer.add_scalar('reward/train', episode_reward, episode)
+                print(f"Episode: {episode}, total numsteps: {total_numsteps}, episode steps: {steps_per_episode}, reward: {round(episode_reward, 2)}")
+
+                if episode % 10 == 0:
+                    self.save_checkpoint()
+
+        
+        # -------------------- Save/Load --------------------                                                                                                       updates)
+    def save_checkpoint(self):
+        if not os.path.exists('checkpoints/'):
+            os.makedirs('checkpoints/')
+
+        print('Saving models...')
+        self.actor.save_checkpoint()
+        self.critic_target.save_checkpoint()
+        self.critic.save_checkpoint()
+
+    def load_checkpoint(self, evaluate=False):
+
+        try:
+            print('Loading models...')
+            self.actor.load_checkpoint()
+            self.critic.load_checkpoint()
+            self.critic_target.load_checkpoint()
+            print('Successfully loaded models')
+        except:
+            if(evaluate):
+                raise Exception("Unable to evaluate models without a loaded checkpoint")
+            else:
+                print("Unable to load models. Starting from scratch")
+
+        if evaluate:
+            self.actor.eval()
+            self.critic.eval()
+            self.critic_target.eval()
+        else:
+            self.actor.train()
+            self.critic.train()
+            self.critic_target.train()

@@ -20,15 +20,14 @@ def weights_init(m):
     if isinstance(m, nn.Linear):
         # It draws from a uniform distribution designed to keep stable gradients
         torch.nn.init.xavier_uniform_(m.weight, gain=1)
-         #Sets all bias terms initial to zero 
+        # Sets all bias terms initial to zero 
         torch.nn.init.constant_(m.bias, 0)
 
 
 #  Gaussian Policy (Actor)
 class Actor(nn.Module):
 
-
-    def __init__(self, state_dim, action_dim, max_action):
+    def __init__(self, state_dim, action_dim, max_action, name= 'actor', checkpoints= 'checkpoints'):
         super(Actor, self).__init__()
         # Two fully connected hidden layers with 256 units each.
         self.l1 = nn.Linear(state_dim, 256)
@@ -43,6 +42,10 @@ class Actor(nn.Module):
         # Actions will be scaled by this value to ensure they stay within valid bounds
         self.max_action = max_action 
 
+        self.name= name
+        self.checkpoints=checkpoints
+        self.checkpoints_file=os.path.join(self.checkpoints, name +'sac')
+        self.apply(weights_init)  # Initialize weights of the network
 
 
     def forward(self, state):
@@ -60,10 +63,11 @@ class Actor(nn.Module):
 
         return mean, std
 
-        #  This is the function that samples an action
-        #  based on the current state and the network's predicted distribution over actions
+        # This is the function that samples an action
+        # based on the current state and the network's predicted distribution over actions
         # You define π(α|s)as a Gaussian distribution with mean μ(s) and standard deviation σ(s)
         # Then you sample through reparameterization
+    
     def sample(self, state):
         mean, std = self.forward(state)
         #  Creates a Gaussian distribution with the predicted mean and std.
@@ -84,16 +88,28 @@ class Actor(nn.Module):
         # Its corrected log-probability, which is needed for the entropy term in SAC's policy loss
         return action, log_prob
 
-        # For the deterministic action, you can use the mean of the distribution
-        # This is the action that the policy would take without any noise
+    # For the deterministic action, you can use the mean of the distribution
+    # This is the action that the policy would take without any noise
     def select_action(self, state):
         with torch.no_grad():
             mean, _ = self.forward(state)
             return torch.tanh(mean) * self.max_action
+    
+    # Save progress
+    def save_checkpoint(self):
+        # Example Usage  
+        # model.load_state_dict(torch.load("actor_checkpoint.pth"))
+        # model.eval()  # Set to eval mode if you're not training
+        #print("Dictionary", self.state_dict())
+        torch.save(self.state_dict(), self.checkpoints_file)
+
+    # Reload progress
+    def load_checkpoint(self):
+        self.load_state_dict(torch.load(self.checkpoints_file))
 
 
 class Critic(nn.Module):
-        def __init__(self, state_dim, action_dim, name= 'critic', checkpoint= 'checkpoint'):
+        def __init__(self, state_dim, action_dim, name= 'critic', checkpoints= 'checkpoints'):
                 super(Critic, self).__init__()
 
                 # Q1 architecture
@@ -107,8 +123,8 @@ class Critic(nn.Module):
                 self.l6 = nn.Linear(256, 1)
 
                 self.name= name
-                self.checkpoint=checkpoint
-                self.checkpoint_file=os.path.join(self.checkpoint, name +'sac')
+                self.checkpoints=checkpoints
+                self.checkpoints_file=os.path.join(self.checkpoints, name +'sac')
                 self.apply(weights_init)  # Initialize weights of the network
 
         def forward(self, state, action):
@@ -137,16 +153,14 @@ class Critic(nn.Module):
                 # Example Usage  
                 # model.load_state_dict(torch.load("actor_checkpoint.pth"))
                 # model.eval()  # Set to eval mode if you're not training
-
-                torch.save(self.state_dict(), self.checkpoint_file)
+                #the state__dict produces a dict with 4 inputs and 254 outputs for linear1
+                torch.save(self.state_dict(), self.checkpoints_file)
 
         # Reload progress
         def load_checkpoint(self):
-                self.load_state_dict(torch.load(self.checkpoint_file))
+                self.load_state_dict(torch.load(self.checkpoints_file))
 
        
-        
-
 class Temperature(nn.Module):
     def __init__(self, init_log_alpha=0.0):
         super().__init__()
@@ -155,3 +169,25 @@ class Temperature(nn.Module):
     def forward(self):
         return self.log_alpha.exp()
 
+
+class PredictiveModel(torch.nn.Module):
+    def __init__(self, num_inputs, num_actions, hidden_dim, checkpoint_dir='checkpoints', name='predictive_network'):
+        super(PredictiveModel, self).__init__()
+        self.fc1 = torch.nn.Linear(num_inputs + num_actions, hidden_dim)
+        self.fc2 = torch.nn.Linear(hidden_dim, hidden_dim)
+        self.fc3 = torch.nn.Linear(hidden_dim, num_inputs)
+        self.checkpoint_dir = checkpoint_dir
+        self.checkpoint_file = os.path.join(self.checkpoint_dir, name+'_sac')
+
+    def forward(self, state, action):
+        x = torch.cat([state, action], dim=1)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        predicted_state = self.fc3(x)
+        return predicted_state
+    
+    def save_checkpoint(self):
+        torch.save(self.state_dict(), self.checkpoint_file)
+
+    def load_checkpoint(self):
+        self.load_state_dict(torch.load(self.checkpoint_file))
