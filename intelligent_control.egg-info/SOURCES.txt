@@ -9,4 +9,3 @@ sac/__init__.py
 sac/networks.py
 sac/replay_buffer.py
 sac/sac.py
-sac/utils.py

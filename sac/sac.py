@@ -110,9 +110,9 @@ class SAC(object):
 
 
         # Predictive Model
-        predictive_next_state = self.predictive_model(state, action)
-        prediction_error=F.mse_loss(predictive_next_state, next_state)
-        prediction_error_no_reduction = F.mse_loss(predictive_next_state, next_state, reduce=False)
+      #  predictive_next_state = self.predictive_model(state, action)
+        #prediction_error=F.mse_loss(predictive_next_state, next_state)
+      #  prediction_error_no_reduction = F.mse_loss(predictive_next_state, next_state, reduce=False)
 
 
 
@@ -133,7 +133,7 @@ class SAC(object):
         updates = 0
 
         # on enery episode the red ball stays in the same pos
-        fixed_goal_cell = np.array([3, 4])  # row 3, column 4
+        fixed_goal_cell = np.array([1, 1])  # row 3, column 4
 
         # state, obs, info = env.reset(options={"goal_cell": fixed_goal_cell})
 
@@ -177,7 +177,30 @@ class SAC(object):
                 if episode % 10 == 0:
                     self.save_checkpoint()
 
-        
+    def test(self, env, episodes=10, max_episode_steps=500):
+
+        for episode in range(episodes):
+            episode_reward = 0
+            episode_steps = 0
+            done = False
+            state,obs, _ = env.reset()
+
+            while not done and episode_steps < max_episode_steps:
+                action = self.select_action(state)
+
+                next_state, next_observation, reward, done, _, _ = env.step(action)
+
+                episode_steps += 1
+
+                if reward == 1:
+                    done = True
+                
+                episode_reward += reward
+
+                state = next_state
+            
+            print(f"Episode: {episode}, Episode steps: {episode_steps}, Reward: {episode_reward}")
+  
         # -------------------- Save/Load --------------------                                                                                                       updates)
     def save_checkpoint(self):
         if not os.path.exists('checkpoints/'):

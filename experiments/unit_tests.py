@@ -20,6 +20,53 @@ class UnitTests:
         assert memory.state[-1][0] == 19
         print("Test Successful\n")
 
+    def test(self):
+
+        replay_buffer_size = 1000000
+        episodes = 100
+        batch_size = 64
+        updates_per_step = 4
+        gamma = 0.99
+        tau = 0.005
+        alpha = 0.1
+        target_update_interval = 1
+        hidden_size = 512
+        learning_rate = 0.0001
+        env_name = "PointMaze_UMaze-v3"
+        max_episode_steps = 100
+        exploration_scaling_factor=1.5
+
+        example_map = [
+        [1, 1, 1, 1, 1],
+        [1, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1]
+        ]
+
+        env = gym.make('PointMaze_UMaze-v3', maze_map=example_map, render_mode="human")
+        env = RoboGymObservationWrapper(env)
+
+        try:
+            agent= SAC (
+                state_dim=4,
+                action_dim=2,
+                gamma=gamma,
+                tau=tau,
+                max_action=1.0,
+                hidden_size=hidden_size,
+                exploration_scaling_factor=exploration_scaling_factor,
+                lr= learning_rate,
+                target_update_interval= target_update_interval,
+                target_entropy=None
+            )
+
+            agent.load_checkpoint(evaluate=True)
+
+            agent.test(env=env, episodes=10, max_episode_steps=200)
+
+        finally:
+            env.close() 
+
+            
     def main2(self):
     
         replay_buffer_size = 1000000
