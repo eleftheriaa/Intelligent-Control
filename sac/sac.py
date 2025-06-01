@@ -8,27 +8,31 @@ import numpy as np
 from torch.utils.tensorboard import SummaryWriter
 from .replay_buffer import ReplayBuffer
 from .LossesAndUpdates import update_actor, update_critic, update_temperature, soft_update
-from .networks import Actor, Critic, Temperature
+from .networks import Actor, Critic, Temperature, PredictiveModel
 
 class SAC(object):
 
  # -------------------- SAC --------------------
 
-    def __init__(self, state_dim, action_dim, max_action, 
-                 gamma=0.99, tau=0.005, actor_lr=3e-4, critic_lr=3e-4, alpha_lr=3e-4, target_update_interval=1, target_entropy=None):
-        
+    def __init__(self, state_dim, action_dim, max_action,hidden_size, exploration_scaling_factor,
+                 gamma=0.99, tau=0.005, lr=3e-4,target_update_interval=1, target_entropy=None):
+        self.max_action = max_action
+        self.gamma = gamma
+        self.tau = tau
+        self.total_it = 0
+        self.target_update_interval = target_update_interval
         # Training neural networks on GPU is often 10× to 100× faster than CPU
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"Using device: {self.device}")
 
         # Actor network and optimizer
         self.actor = Actor(state_dim, action_dim, max_action).to(self.device)
-        self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=actor_lr)
+        self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=lr)
 
         # Critic networks and target networks
         self.critic = Critic(state_dim, action_dim).to(self.device)
         self.critic_target = copy.deepcopy(self.critic)
-        self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=critic_lr)
+        self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=lr)
 
         # Temperature parameter (log_alpha is learnable)
         #self.alpha = Temperature().to(self.device)
@@ -41,11 +45,13 @@ class SAC(object):
         else:
             self.target_entropy = target_entropy
 
-        self.max_action = max_action
-        self.gamma = gamma
-        self.tau = tau
-        self.total_it = 0
-        self.target_update_interval = target_update_interval
+        # Initialise the predictive model
+        self.predictive_model = PredictiveModel(num_inputs=state_dim, num_actions=action_dim,hidden_dim=hidden_size)
+        self.predictive_model_optim = torch.optim.Adam(self.predictive_model.parameters(), lr=lr)
+        self.exploration_factor = exploration_scaling_factor
+
+
+
 
 # -------------------- SAC Methods--------------------
 
@@ -101,6 +107,16 @@ class SAC(object):
         # -------------------- Target Network Update --------------------
         soft_update(self.critic, self.critic_target, self.tau)
        
+
+
+        # Predictive Model
+        predictive_next_state = self.predictive_model(state, action)
+        prediction_error=F.mse_loss(predictive_next_state, next_state)
+        prediction_error_no_reduction = F.mse_loss(predictive_next_state, next_state, reduce=False)
+
+
+
+
         return actor_loss, critic_loss#, alpha_loss
     
 

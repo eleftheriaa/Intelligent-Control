@@ -52,9 +52,9 @@ class UnitTests:
                 gamma=gamma,
                 tau=tau,
                 max_action=1.0,
-                actor_lr=learning_rate,
-                critic_lr=learning_rate,
-                alpha_lr=learning_rate,
+                hidden_size=hidden_size,
+                exploration_scaling_factor=exploration_scaling_factor,
+                lr= learning_rate,
                 target_update_interval= target_update_interval,
                 target_entropy=None
             )
