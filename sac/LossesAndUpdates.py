@@ -55,19 +55,18 @@ def update_critic(critics, critic_targets, critic_optimizer, actor, temperature,
     critic_loss.backward()
     critic_optimizer.step()
 
-    if updates % target_update_interval == 0:
-        soft_update(critic_targets, critics, tau)
 
     return critic_loss.item()
 
 def update_temperature(temperature, alpha_optimizer, log_pi, target_entropy):
-    alpha_loss = -(temperature.log_alpha * (log_pi + target_entropy).detach()).mean()
+    # alpha_loss = -(temperature.log_alpha * (log_pi + target_entropy).detach()).mean()
 
-    alpha_optimizer.zero_grad()
-    alpha_loss.backward()
-    alpha_optimizer.step()
-
-    return alpha_loss.item()
+    # alpha_optimizer.zero_grad()
+    # alpha_loss.backward()
+    # alpha_optimizer.step()
+    alpha_loss= torch.tensor(0.)
+    alpha_tlogs=torch.tensor(temperature)
+    return alpha_loss.item(),alpha_tlogs
 
 def soft_update(critics, critic_targets, tau):
     for param, target_param in zip(critics.parameters(), critic_targets.parameters()):

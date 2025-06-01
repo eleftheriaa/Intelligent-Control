@@ -47,7 +47,7 @@ class UnitTests:
 
         try:
             agent= SAC (
-                state_dim=4,
+                state_dim=8,
                 action_dim=2,
                 gamma=gamma,
                 tau=tau,
@@ -94,19 +94,19 @@ class UnitTests:
 
         try:
             agent= SAC (
-                state_dim=4,
+                state_dim=8,
                 action_dim=2,
-                gamma=gamma,
-                tau=tau,
                 max_action=1.0,
                 hidden_size=hidden_size,
                 exploration_scaling_factor=exploration_scaling_factor,
+                gamma=gamma,
+                tau=tau,
                 lr= learning_rate,
                 target_update_interval= target_update_interval,
                 target_entropy=None
             )
 
-            memory= ReplayBuffer(4, 2, replay_buffer_size)
+            memory= ReplayBuffer(8, 2, replay_buffer_size)
 
             agent.training(
                 env=env,  # Replace with actual environment

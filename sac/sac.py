@@ -105,16 +105,15 @@ class SAC(object):
         # )
 
         # -------------------- Target Network Update --------------------
-        soft_update(self.critic, self.critic_target, self.tau)
-       
+       # soft_update(self.critic, self.critic_target, self.tau)
+        if updates % self.target_update_interval == 0:
+            soft_update(self.critic, self.critic_target, self.tau)
 
 
         # Predictive Model
       #  predictive_next_state = self.predictive_model(state, action)
         #prediction_error=F.mse_loss(predictive_next_state, next_state)
       #  prediction_error_no_reduction = F.mse_loss(predictive_next_state, next_state, reduce=False)
-
-
 
 
         return actor_loss, critic_loss#, alpha_loss
@@ -149,7 +148,7 @@ class SAC(object):
                         # gym method that initialises ranndom action
                         action = env.action_space.sample()
                     else:
-                        action = self.select_action(state)
+                        action = self.select_action(obs)
 
                     
                     #if you can sample, go do training, graph the results , come back
@@ -168,8 +167,8 @@ class SAC(object):
                     episode_reward += reward
 
                     flag = 1 if steps_per_episode == max_episode_steps else float(not done)
-                    memory.add(state, action, next_state, reward, flag)
-                    state= next_state
+                    memory.add(obs, action, next_observation, reward, flag)
+                    obs= next_observation
 
                 writer.add_scalar('reward/train', episode_reward, episode)
                 print(f"Episode: {episode}, total numsteps: {total_numsteps}, episode steps: {steps_per_episode}, reward: {round(episode_reward, 2)}")
@@ -186,7 +185,7 @@ class SAC(object):
             state,obs, _ = env.reset()
 
             while not done and episode_steps < max_episode_steps:
-                action = self.select_action(state)
+                action = self.select_action(obs)
 
                 next_state, next_observation, reward, done, _, _ = env.step(action)
 
@@ -197,7 +196,7 @@ class SAC(object):
                 
                 episode_reward += reward
 
-                state = next_state
+                obs = next_observation
             
             print(f"Episode: {episode}, Episode steps: {episode_steps}, Reward: {episode_reward}")
   
