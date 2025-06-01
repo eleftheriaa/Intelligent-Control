@@ -48,15 +48,15 @@ class UnitTests:
         try:
             agent= SAC (
                 state_dim=4,
-                action_dim=2,
+                action_dim=env.action_space,
+                max_action=1.0,
+                hidden_size=hidden_size,                
+                exploration_scaling_factor=exploration_scaling_factor,
                 gamma=gamma,
                 tau=tau,
-                max_action=1.0,
-                hidden_size=hidden_size,
-                exploration_scaling_factor=exploration_scaling_factor,
+                alpha = alpha,
                 lr= learning_rate,
-                target_update_interval= target_update_interval,
-                target_entropy=None
+                target_update_interval= target_update_interval
             )
 
             memory= ReplayBuffer(4, 2, replay_buffer_size)

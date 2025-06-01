@@ -7,48 +7,49 @@ import datetime
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
 from .replay_buffer import ReplayBuffer
-from .LossesAndUpdates import update_actor, update_critic, update_temperature, soft_update
-from .networks import Actor, Critic, Temperature, PredictiveModel
+from .LossesAndUpdates import update_actor, update_critic, soft_update
+from .networks import Actor, Critic, PredictiveModel
+
+
 
 class SAC(object):
 
  # -------------------- SAC --------------------
 
     def __init__(self, state_dim, action_dim, max_action,hidden_size, exploration_scaling_factor,
-                 gamma=0.99, tau=0.005, lr=3e-4,target_update_interval=1, target_entropy=None):
+                 gamma=0.99, tau=0.005,alpha =0.1, lr=3e-4,target_update_interval=1):
         self.max_action = max_action
         self.gamma = gamma
         self.tau = tau
         self.total_it = 0
         self.target_update_interval = target_update_interval
+        self.alpha=alpha
+
         # Training neural networks on GPU is often 10× to 100× faster than CPU
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"Using device: {self.device}")
 
         # Actor network and optimizer
-        self.actor = Actor(state_dim, action_dim, max_action).to(self.device)
+        self.actor = Actor(state_dim, action_dim.shape[0],hidden_size,action_dim, max_action).to(self.device)
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=lr)
 
         # Critic networks and target networks
-        self.critic = Critic(state_dim, action_dim).to(self.device)
+        self.critic = Critic(state_dim, action_dim.shape[0],hidden_size).to(self.device)
         self.critic_target = copy.deepcopy(self.critic)
         self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=lr)
 
-        # Temperature parameter (log_alpha is learnable)
-        #self.alpha = Temperature().to(self.device)
-        #self.alpha_optimizer = torch.optim.Adam(self.alpha.parameters(), lr=alpha_lr)
-        self.alpha=0.12
+       
 
-        # Entropy target
-        if target_entropy is None:
-            self.target_entropy = -action_dim  # Heuristic from SAC paper
-        else:
-            self.target_entropy = target_entropy
+        # # Entropy target
+        # if target_entropy is None:
+        #     self.target_entropy = -action_dim  # Heuristic from SAC paper
+        # else:
+        #     self.target_entropy = target_entropy
 
         # Initialise the predictive model
-        self.predictive_model = PredictiveModel(num_inputs=state_dim, num_actions=action_dim,hidden_dim=hidden_size)
+        self.predictive_model = PredictiveModel(num_inputs=state_dim, num_actions=action_dim.shape[0],hidden_dim=hidden_size).to(self.device)
         self.predictive_model_optim = torch.optim.Adam(self.predictive_model.parameters(), lr=lr)
-        self.exploration_factor = exploration_scaling_factor
+        self.exploration_scaling_factor = exploration_scaling_factor
 
 
 
@@ -67,10 +68,19 @@ class SAC(object):
         # Υou can't call .numpy() on a GPU tensor.
         return action.detach().cpu().numpy()[0]
 
-    def update_parameters(self, replay_buffer, updates, batch_size=256):
+    def update_parameters(self, replay_buffer, updates, batch_size):
         self.total_it += 1
 
         state, action, next_state, reward, not_done = replay_buffer.sample(batch_size)
+
+        # -------------------- Predictive Model --------------------
+        predictive_next_state = self.predictive_model(state, action)
+        prediction_error = F.mse_loss(predictive_next_state, next_state) # loss for the update of the nn
+        prediction_error_no_reduction = F.mse_loss(predictive_next_state, next_state,reduction ="none") # loss that will feed the agent as the intrinsic reward
+
+        scaled_intrinsic_reward = prediction_error_no_reduction.mean(dim=1)
+        scaled_intrinsic_reward= self.exploration_scaling_factor*torch.reshape(scaled_intrinsic_reward,(batch_size,1))
+        reward = reward+ scaled_intrinsic_reward
 
         # -------------------- Critic Update --------------------
         critic_loss= update_critic(
@@ -89,6 +99,13 @@ class SAC(object):
             updates,
             self.tau
         )
+        
+
+        # Update the ICM
+        self.predictive_model_optim.zero_grad()
+        prediction_error.backward()
+        self.predictive_model_optim.step()
+
 
         # -------------------- Actor Update --------------------
         actor_loss, log_pi = update_actor(
@@ -98,26 +115,19 @@ class SAC(object):
             self.alpha,
             state
         )
+        
+        alpha_loss = torch.tensor(0.).to(self.device)
+        alpha_tlogs = torch.tensor(self.alpha)
 
-        # -------------------- Temperature Update --------------------
-        # alpha_loss= update_temperature(
-        #     self.alpha, self.alpha_optimizer, log_pi, self.target_entropy
-        # )
-
-        # -------------------- Target Network Update --------------------
-        soft_update(self.critic, self.critic_target, self.tau)
        
+        # -------------------- Target Network Update --------------------
+        if updates % self.target_update_interval == 0:
 
+            soft_update(self.critic, self.critic_target, self.tau)
+       
+        
 
-        # Predictive Model
-        predictive_next_state = self.predictive_model(state, action)
-        prediction_error=F.mse_loss(predictive_next_state, next_state)
-        prediction_error_no_reduction = F.mse_loss(predictive_next_state, next_state, reduce=False)
-
-
-
-
-        return actor_loss, critic_loss#, alpha_loss
+        return actor_loss, critic_loss , prediction_error,alpha_loss, alpha_tlogs
     
 
     def training(self,env, env_name, memory: ReplayBuffer, episodes, batch_size, updates_per_step, summary_writer_name="", max_episode_steps=100):
@@ -133,12 +143,14 @@ class SAC(object):
         updates = 0
 
         # on enery episode the red ball stays in the same pos
-        fixed_goal_cell = np.array([3, 4])  # row 3, column 4
+        fixed_goal_cell = np.array([1,1])  # row 3, column 4
 
         # state, obs, info = env.reset(options={"goal_cell": fixed_goal_cell})
 
         for episode in range(episodes):
+                
                 state, obs, _ = env.reset(options={"goal_cell": fixed_goal_cell})
+                
                 episode_reward = 0      
                 steps_per_episode = 0
                 done= False
@@ -155,10 +167,12 @@ class SAC(object):
                     #if you can sample, go do training, graph the results , come back
                     if memory.can_sample(batch_size=batch_size):
                         for i in range(updates_per_step):
-                            actor_loss, critic_loss= self.update_parameters(memory, updates, batch_size)
+                            actor_loss, critic_loss, prediction_loss, ent_loss, alpha= self.update_parameters(memory, updates, batch_size)
                             # Tensorboard
                             writer.add_scalar('loss/critic_overall', critic_loss, updates)
                             writer.add_scalar('loss/policy', actor_loss, updates)
+                            writer.add_scalar('loss/prediction', prediction_loss, updates)
+                            
                             updates += 1
 
                     next_state, next_observation, reward, done, _, _ = env.step(action)
@@ -169,7 +183,7 @@ class SAC(object):
 
                     flag = 1 if steps_per_episode == max_episode_steps else float(not done)
                     memory.add(state, action, next_state, reward, flag)
-                    state= next_state
+                    state = next_state
 
                 writer.add_scalar('reward/train', episode_reward, episode)
                 print(f"Episode: {episode}, total numsteps: {total_numsteps}, episode steps: {steps_per_episode}, reward: {round(episode_reward, 2)}")

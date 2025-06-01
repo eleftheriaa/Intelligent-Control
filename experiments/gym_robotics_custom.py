@@ -8,9 +8,9 @@ class RoboGymObservationWrapper(ObservationWrapper):
         super(RoboGymObservationWrapper, self).__init__(env)
 
     # The initial state (x,y) is at the center of the box and has noise range 0.25 (uniform distribution)
-    def reset(self, options):
+    def reset(self, options=None):
         # Reset the environment and process the initial observation
-        observation, info = self.env.reset()
+        observation, info = self.env.reset(options=options)
         initial_state, observation = self.process_observation(observation)
         return initial_state,observation, info
 
