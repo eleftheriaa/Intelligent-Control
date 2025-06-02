@@ -101,7 +101,10 @@ class Actor(nn.Module):
         with torch.no_grad():
             mean, _ = self.forward(state)
             return torch.tanh(mean) * self.max_action
-    
+    def to(self, device):
+        self.action_scale = self.action_scale.to(device)
+        self.action_bias = self.action_bias.to(device)
+        return super(Actor, self).to(device)
     # Save progress
     def save_checkpoint(self):
         # Example Usage  

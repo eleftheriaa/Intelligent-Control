@@ -44,10 +44,12 @@ class UnitTests:
 
         env = gym.make('PointMaze_UMaze-v3', maze_map=example_map, render_mode="human")
         env = RoboGymObservationWrapper(env)
+        observation, info = env.reset()
 
+        observation_size = observation.shape[0]
         try:
             agent= SAC (
-                state_dim=4,
+                state_dim=observation_size,
                 action_dim=env.action_space,
                 max_action=1.0,
                 hidden_size=hidden_size,                
@@ -59,7 +61,8 @@ class UnitTests:
                 target_update_interval= target_update_interval
             )
 
-            memory= ReplayBuffer(4, 2, replay_buffer_size)
+            memory= ReplayBuffer(observation_size, env.action_space.shape[0], replay_buffer_size)
+
 
             agent.training(
                 env=env,  # Replace with actual environment

@@ -115,7 +115,6 @@ class SAC(object):
             self.alpha,
             state
         )
-        
         alpha_loss = torch.tensor(0.).to(self.device)
         alpha_tlogs = torch.tensor(self.alpha)
 
@@ -127,7 +126,7 @@ class SAC(object):
        
         
 
-        return actor_loss, critic_loss , prediction_error,alpha_loss, alpha_tlogs
+        return actor_loss, critic_loss , prediction_error, alpha_loss, alpha_tlogs
     
 
     def training(self,env, env_name, memory: ReplayBuffer, episodes, batch_size, updates_per_step, summary_writer_name="", max_episode_steps=100):
@@ -143,14 +142,11 @@ class SAC(object):
         updates = 0
 
         # on enery episode the red ball stays in the same pos
-        fixed_goal_cell = np.array([1,1])  # row 3, column 4
 
-        # state, obs, info = env.reset(options={"goal_cell": fixed_goal_cell})
 
         for episode in range(episodes):
-                
-                state, obs, _ = env.reset(options={"goal_cell": fixed_goal_cell})
-                
+                state,_ = env.reset()
+  
                 episode_reward = 0      
                 steps_per_episode = 0
                 done= False
@@ -175,7 +171,7 @@ class SAC(object):
                             
                             updates += 1
 
-                    next_state, next_observation, reward, done, _, _ = env.step(action)
+                    next_state, reward, done, _, _ = env.step(action)
 
                     steps_per_episode += 1
                     total_numsteps += 1
