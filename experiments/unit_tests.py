@@ -28,7 +28,7 @@ class UnitTests:
         updates_per_step = 4
         gamma = 0.99
         tau = 0.005
-        alpha = 0.1
+        alpha = 0.12
         target_update_interval = 1
         hidden_size = 512
         learning_rate = 0.0001
@@ -60,7 +60,6 @@ class UnitTests:
             )
 
             agent.load_checkpoint(evaluate=True)
-
             agent.test(env=env, episodes=10, max_episode_steps=200)
 
         finally:
@@ -75,7 +74,7 @@ class UnitTests:
         updates_per_step = 4
         gamma = 0.99
         tau = 0.005
-        alpha = 0.1
+        alpha = 0.12
         target_update_interval = 1
         hidden_size = 512
         learning_rate = 0.0001

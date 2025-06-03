@@ -30,14 +30,14 @@ class Actor(nn.Module):
     def __init__(self, state_dim, action_dim, max_action, name= 'actor', checkpoints= 'checkpoints'):
         super(Actor, self).__init__()
         # Two fully connected hidden layers with 256 units each.
-        self.l1 = nn.Linear(state_dim, 256)
-        self.l2 = nn.Linear(256, 256)
+        self.l1 = nn.Linear(state_dim, 512)
+        self.l2 = nn.Linear(512, 512)
 
         #  The output of the final hidden layer is split into:
         # -> mean of the action distribution 
         # -> log standard deviation (log σ) 
-        self.mean_layer = nn.Linear(256, action_dim)
-        self.log_std_layer = nn.Linear(256, action_dim)
+        self.mean_layer = nn.Linear(512, action_dim)
+        self.log_std_layer = nn.Linear(512, action_dim)
 
         # Actions will be scaled by this value to ensure they stay within valid bounds
         self.max_action = max_action 
@@ -60,7 +60,7 @@ class Actor(nn.Module):
         log_std = torch.clamp(log_std, LOG_STD_MIN, LOG_STD_MAX)
         #  Convert log(σ) back to standard deviation (σ)
         std = log_std.exp()
-
+        #print("You caught an  std", std[:2])
         return mean, std
 
         # This is the function that samples an action
@@ -72,6 +72,9 @@ class Actor(nn.Module):
         mean, std = self.forward(state)
         #  Creates a Gaussian distribution with the predicted mean and std.
         normal = torch.distributions.Normal(mean, std)
+       # print("mean:", mean[0].detach().cpu().numpy())
+        #print("std :", std[0].detach().cpu().numpy())
+
         x_t = normal.rsample()  # reparameterization trick x_t= mean+ std*epsilon
         y_t = torch.tanh(x_t) #  The tanh function squashes the output to be between -1 and 1???????????????
         #  The action is scaled by the max_action to ensure it stays within valid bounds???????
@@ -83,7 +86,7 @@ class Actor(nn.Module):
         #  1 - y_t.pow(2) is the derivative of tanh(z) (chain rule).
         log_prob -= torch.log(1 - y_t.pow(2) + 1e-6)
         log_prob = log_prob.sum(1, keepdim=True)
-
+        #print("action:", action[0].detach().cpu().numpy())
         # A sampled, squashed, scaled action from the policy
         # Its corrected log-probability, which is needed for the entropy term in SAC's policy loss
         return action, log_prob
@@ -93,6 +96,7 @@ class Actor(nn.Module):
     def select_action(self, state):
         with torch.no_grad():
             mean, _ = self.forward(state)
+            print("mean:", mean[0].detach().cpu().numpy())
             return torch.tanh(mean) * self.max_action
     
     # Save progress
@@ -113,14 +117,14 @@ class Critic(nn.Module):
                 super(Critic, self).__init__()
 
                 # Q1 architecture
-                self.l1 = nn.Linear(state_dim + action_dim, 256)
-                self.l2 = nn.Linear(256, 256)
-                self.l3 = nn.Linear(256, 1)
+                self.l1 = nn.Linear(state_dim + action_dim, 512)
+                self.l2 = nn.Linear(512, 512)
+                self.l3 = nn.Linear(512, 1)
 
                 # Q2 architecture
-                self.l4 = nn.Linear(state_dim + action_dim, 256)
-                self.l5 = nn.Linear(256, 256)
-                self.l6 = nn.Linear(256, 1)
+                self.l4 = nn.Linear(state_dim + action_dim, 512)
+                self.l5 = nn.Linear(512, 512)
+                self.l6 = nn.Linear(512, 1)
 
                 self.name= name
                 self.checkpoints=checkpoints
@@ -139,14 +143,6 @@ class Critic(nn.Module):
                 q2 = self.l6(q2)
 
                 return q1, q2
-        
-        def Q1(self, state, action):
-                sa = torch.cat([state, action], 1)
-
-                q1 = F.relu(self.l1(sa))
-                q1 = F.relu(self.l2(q1))
-                q1 = self.l3(q1)
-                return q1
         
         # Save progress
         def save_checkpoint(self):

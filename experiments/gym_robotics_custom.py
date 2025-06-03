@@ -12,7 +12,7 @@ class RoboGymObservationWrapper(ObservationWrapper):
         # Reset the environment and process the initial observation
         observation, info = self.env.reset(options=options)
         initial_state, observation = self.process_observation(observation)
-        return initial_state,observation, info
+        return initial_state, observation, info
 
     def step(self, action):
         observation, reward, done, truncated, info = self.env.step(action)

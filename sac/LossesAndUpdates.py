@@ -25,6 +25,8 @@ def update_actor(actor, critics, actor_optimizer, temperature, state):
     new_action, log_pi = actor.sample(state) # samples action
     q1, q2 = critics(state, new_action)# calculates the q values for this sampled action
     q_min = torch.min(q1, q2) # finds the min between the q values
+    print("Q_min:", q_min.mean().item())
+    print("log_pi:", log_pi.mean().item())
 
     # calculates actor loss
     actor_loss = (temperature * log_pi - q_min).mean()
