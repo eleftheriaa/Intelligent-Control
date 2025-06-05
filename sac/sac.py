@@ -46,11 +46,6 @@ class SAC(object):
         # else:
         #     self.target_entropy = target_entropy
 
-        # Initialise the predictive model
-        # self.predictive_model = PredictiveModel(num_inputs=state_dim, num_actions=action_dim.shape[0],hidden_dim=hidden_size).to(self.device)
-        # self.predictive_model_optim = torch.optim.Adam(self.predictive_model.parameters(), lr=lr)
-        # self.exploration_scaling_factor = exploration_scaling_factor
-
 
 
 
@@ -74,14 +69,7 @@ class SAC(object):
         # each of these is a batch ( not a single sample )
         state, action, next_state, reward, not_done = memory.sample(batch_size)
 
-        # # -------------------- Predictive Model --------------------
-        # predictive_next_state = self.predictive_model(state, action)
-        # prediction_error = F.mse_loss(predictive_next_state, next_state) # loss for the update of the nn
-        # prediction_error_no_reduction = F.mse_loss(predictive_next_state, next_state,reduction ="none") # loss that will feed the agent as the intrinsic reward
-
-        # scaled_intrinsic_reward = prediction_error_no_reduction.mean(dim=1)
-        # scaled_intrinsic_reward= self.exploration_scaling_factor*torch.reshape(scaled_intrinsic_reward,(batch_size,1))
-        # reward = reward+ scaled_intrinsic_reward
+        
 
         # -------------------- Critic Update --------------------
         critic_loss= update_critic(
@@ -102,10 +90,8 @@ class SAC(object):
         )
         
 
-        # # Update the ICM
-        # self.predictive_model_optim.zero_grad()
-        # prediction_error.backward()
-        # self.predictive_model_optim.step()
+
+
 
 
         # -------------------- Actor Update --------------------
@@ -171,7 +157,7 @@ class SAC(object):
                             # Tensorboard
                             writer.add_scalar('loss/critic_overall', critic_loss, updates)
                             writer.add_scalar('loss/policy', actor_loss, updates)
-                            # writer.add_scalar('loss/prediction', prediction_loss, updates)
+                            
                             
                             updates += 1
 
