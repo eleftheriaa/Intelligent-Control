@@ -46,18 +46,18 @@ class UnitTests:
         env = RoboGymObservationWrapper(env)
 
         try:
-            agent= SAC (
-                state_dim=8,
+            agent= SAC(state_dim=8,
                 action_dim=2,
-                gamma=gamma,
-                tau=tau,
-                max_action=1.0,
                 hidden_size=hidden_size,
                 exploration_scaling_factor=exploration_scaling_factor,
+                action_space=env.action_space,
+                gamma=gamma,
+                tau=tau,
                 lr= learning_rate,
                 target_update_interval= target_update_interval,
                 target_entropy=None
             )
+
 
             agent.load_checkpoint(evaluate=True)
             agent.test(env=env, episodes=10, max_episode_steps=200)
@@ -95,9 +95,9 @@ class UnitTests:
             agent= SAC (
                 state_dim=8,
                 action_dim=2,
-                max_action=1.0,
                 hidden_size=hidden_size,
                 exploration_scaling_factor=exploration_scaling_factor,
+                action_space=env.action_space,
                 gamma=gamma,
                 tau=tau,
                 lr= learning_rate,

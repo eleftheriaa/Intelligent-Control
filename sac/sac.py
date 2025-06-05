@@ -14,9 +14,9 @@ class SAC(object):
 
  # -------------------- SAC --------------------
 
-    def __init__(self, state_dim, action_dim, max_action,hidden_size, exploration_scaling_factor,
+    def __init__(self, state_dim, action_dim, action_space, hidden_size, exploration_scaling_factor,
                  gamma=0.99, tau=0.005, lr=3e-4,target_update_interval=1, target_entropy=None):
-        self.max_action = max_action
+        
         self.gamma = gamma
         self.tau = tau
         self.total_it = 0
@@ -26,7 +26,7 @@ class SAC(object):
         print(f"Using device: {self.device}")
 
         # Actor network and optimizer
-        self.actor = Actor(state_dim, action_dim, max_action).to(self.device)
+        self.actor = Actor(state_dim, action_dim, action_space,self.device).to(self.device)
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=lr)
 
         # Critic networks and target networks
@@ -69,7 +69,7 @@ class SAC(object):
         # state, obs, info = env.reset(options={"goal_cell": fixed_goal_cell})
 
         for episode in range(episodes):
-                state, obs, _ = env.reset(options={"goal_cell": fixed_goal_cell})
+                obs, _ = env.reset(options={"goal_cell": fixed_goal_cell})
                 episode_reward = 0      
                 steps_per_episode = 0
                 done= False
@@ -83,7 +83,6 @@ class SAC(object):
                         action = self.select_actionn(obs)
 
 
-                    
                     #if you can sample, go do training, graph the results , come back
                     if memory.can_sample(batch_size=batch_size):
                         for i in range(updates_per_step):
@@ -93,15 +92,16 @@ class SAC(object):
                             writer.add_scalar('loss/policy', actor_loss, updates)
                             updates += 1
 
-                    next_state, next_observation, reward, done, _, _ = env.step(action)
+                    next_observation, reward, done, _, _ = env.step(action)
 
                     steps_per_episode += 1
                     total_numsteps += 1
                     episode_reward += reward
 
-                    flag = 1 if steps_per_episode == max_episode_steps else float(not done)
-                    if reward ==1: 
-                        "gamv"
+                    flag = 1 if steps_per_episode == max_episode_steps else float(done)
+        
+                    #print("GREEK FLAG",flag)
+
                     memory.add(obs, action, next_observation, reward, flag)
                     obs= next_observation
 
@@ -117,12 +117,12 @@ class SAC(object):
             episode_reward = 0
             episode_steps = 0
             done = False
-            state,obs, _ = env.reset()
+            obs, _ = env.reset()
 
             while not done and episode_steps < max_episode_steps:
                 action = self.select_actionn(obs, evaluate=True)
 
-                next_state, next_observation, reward, done, _, _ = env.step(action)
+                next_observation, reward, done, _, _ = env.step(action)
 
                 episode_steps += 1
 
@@ -141,13 +141,15 @@ class SAC(object):
         state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
         if evaluate is False:
             # We are training
-            action, _= self.actor.sample(state)
+            action, _= self.actor.samplee(state)
         else:
             # We are evaluating, we want consistent behavior
             action= self.actor.select_action(state)
 
         # Υou can't call .numpy() on a GPU tensor.
         return action.detach().cpu().numpy()[0]
+
+
 
     def update_parameters(self, replay_buffer, updates, batch_size=256):
 
@@ -164,7 +166,7 @@ class SAC(object):
             action,
             reward,
             next_state,
-            1 - not_done,
+            1-not_done,
             self.gamma,
             self.target_update_interval,
             updates,
@@ -174,10 +176,11 @@ class SAC(object):
         # -------------------- Actor Update --------------------
         actor_loss, log_pi = update_actor(
             self.actor,
-            (self.critic),
+            self.critic,
             self.actor_optimizer,
             self.alpha,
-            state
+            state,
+            updates
         )
 
         # -------------------- Temperature Update --------------------
@@ -188,6 +191,7 @@ class SAC(object):
         # -------------------- Target Network Update --------------------
        # soft_update(self.critic, self.critic_target, self.tau)
         if updates % self.target_update_interval == 0:
+            #print("kkkkk")
             soft_update(self.critic, self.critic_target, self.tau)
 
 

@@ -27,9 +27,9 @@ def weights_init(m):
 #  Gaussian Policy (Actor)
 class Actor(nn.Module):
 
-    def __init__(self, state_dim, action_dim, max_action, name= 'actor', checkpoints= 'checkpoints'):
-        super(Actor, self).__init__()
+    def __init__(self, state_dim, action_dim, action_space,device , name='actor', checkpoints='checkpoints'):
         # Two fully connected hidden layers with 256 units each.
+        super(Actor, self).__init__()
         self.l1 = nn.Linear(state_dim, 512)
         self.l2 = nn.Linear(512, 512)
 
@@ -40,12 +40,14 @@ class Actor(nn.Module):
         self.log_std_layer = nn.Linear(512, action_dim)
 
         # Actions will be scaled by this value to ensure they stay within valid bounds
-        self.max_action = max_action 
-
+        
         self.name= name
         self.checkpoints=checkpoints
         self.checkpoints_file=os.path.join(self.checkpoints, name +'sac')
         self.apply(weights_init)  # Initialize weights of the network
+
+        self.max_action = 1
+        # self.max_action = torch.FloatTensor((action_space.high + action_space.low) / 2.)
 
 
     def forward(self, state):
@@ -68,7 +70,9 @@ class Actor(nn.Module):
         # You define π(α|s)as a Gaussian distribution with mean μ(s) and standard deviation σ(s)
         # Then you sample through reparameterization
     
-    def sample(self, state):
+    
+    def samplee(self, state):
+
         mean, std = self.forward(state)
         #  Creates a Gaussian distribution with the predicted mean and std.
         normal = torch.distributions.Normal(mean, std)
@@ -79,12 +83,12 @@ class Actor(nn.Module):
         y_t = torch.tanh(x_t) #  The tanh function squashes the output to be between -1 and 1???????????????
         #  The action is scaled by the max_action to ensure it stays within valid bounds???????
         
-        action = y_t * self.max_action # + self.bias
+        action = y_t * self.max_action
 
         #  Computes the log-probability of the action under the Gaussian distribution
         log_prob = normal.log_prob(x_t)
         #  1 - y_t.pow(2) is the derivative of tanh(z) (chain rule).
-        log_prob -= torch.log(1 - y_t.pow(2) + 1e-6)
+        log_prob -= torch.log(self.max_action *(1 - y_t.pow(2)) + 1e-6)
         log_prob = log_prob.sum(1, keepdim=True)
         #print("action:", action[0].detach().cpu().numpy())
         # A sampled, squashed, scaled action from the policy

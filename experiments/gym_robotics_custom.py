@@ -11,14 +11,14 @@ class RoboGymObservationWrapper(ObservationWrapper):
     def reset(self, options=None):
         # Reset the environment and process the initial observation
         observation, info = self.env.reset(options=options)
-        initial_state, observation = self.process_observation(observation)
-        return initial_state, observation, info
+        observation = self.process_observation(observation)
+        return observation, info
 
     def step(self, action):
         observation, reward, done, truncated, info = self.env.step(action)
-        state, observation = self.process_observation(observation)
+        observation = self.process_observation(observation)
         
-        return state, observation, reward, done, truncated, info
+        return  observation, reward, done, truncated, info
 
     def process_observation(self, observation):
         state = observation['observation'] #x,y, linear velocity in x , linear velocity in y
@@ -29,4 +29,4 @@ class RoboGymObservationWrapper(ObservationWrapper):
 
         obs_concatenated = np.concatenate((state, achieved_goal, desired_goal))
 
-        return state, obs_concatenated
+        return obs_concatenated

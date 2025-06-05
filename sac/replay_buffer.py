@@ -27,13 +27,15 @@ class ReplayBuffer(object):
 		else:
 			return False
 		
-    # this function stores one transition tuple (1 experience)
+	# this function stores one transition tuple (1 experience)
 	def add(self, state, action, next_state, reward, done):
 		self.state[self.ptr] = state
 		self.action[self.ptr] = action
 		self.next_state[self.ptr] = next_state
 		self.reward[self.ptr] = reward
 		self.not_done[self.ptr] = 1. - done
+		# print("Sampled rewards mean/std:", reward.mean(), reward.std())
+		# print("not_done mean:", self.not_done[self.ptr])
 
 		self.ptr = (self.ptr + 1) % self.max_size # (circular buffer logic)
 		self.size = min(self.size + 1, self.max_size)
