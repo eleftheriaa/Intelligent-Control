@@ -28,12 +28,12 @@ class ReplayBuffer(object):
 			return False
 		
     # this function stores one transition tuple (1 experience)
-	def add(self, state, action, next_state, reward, done):
+	def add(self, state, action, next_state, reward, not_done):
 		self.state[self.ptr] = state
 		self.action[self.ptr] = action
 		self.next_state[self.ptr] = next_state
 		self.reward[self.ptr] = reward
-		self.not_done[self.ptr] = 1. - done
+		self.not_done[self.ptr] = not_done
 
 		self.ptr = (self.ptr + 1) % self.max_size # (circular buffer logic)
 		self.size = min(self.size + 1, self.max_size)
@@ -44,6 +44,7 @@ class ReplayBuffer(object):
 		ind = np.random.randint(0, self.size, size=batch_size)
 		#Converts the 2D NumPy array to a PyTorch tensor
 		return (
+			# each of these is a batch ( not a single sample )
 			torch.FloatTensor(self.state[ind]).to(self.device),
 			torch.FloatTensor(self.action[ind]).to(self.device),
 			torch.FloatTensor(self.next_state[ind]).to(self.device),

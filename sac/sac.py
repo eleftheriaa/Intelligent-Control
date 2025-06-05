@@ -8,7 +8,7 @@ import numpy as np
 from torch.utils.tensorboard import SummaryWriter
 from .replay_buffer import ReplayBuffer
 from .LossesAndUpdates import update_actor, update_critic, soft_update
-from .networks import Actor, Critic, PredictiveModel
+from .networks import Actor, Critic
 
 
 
@@ -17,7 +17,7 @@ class SAC(object):
  # -------------------- SAC --------------------
 
     def __init__(self, state_dim, action_dim, max_action,hidden_size, exploration_scaling_factor,
-                 gamma=0.99, tau=0.005,alpha =0.1, lr=3e-4,target_update_interval=1):
+                 gamma, tau,alpha , lr,target_update_interval):
         self.max_action = max_action
         self.gamma = gamma
         self.tau = tau
@@ -47,9 +47,9 @@ class SAC(object):
         #     self.target_entropy = target_entropy
 
         # Initialise the predictive model
-        self.predictive_model = PredictiveModel(num_inputs=state_dim, num_actions=action_dim.shape[0],hidden_dim=hidden_size).to(self.device)
-        self.predictive_model_optim = torch.optim.Adam(self.predictive_model.parameters(), lr=lr)
-        self.exploration_scaling_factor = exploration_scaling_factor
+        # self.predictive_model = PredictiveModel(num_inputs=state_dim, num_actions=action_dim.shape[0],hidden_dim=hidden_size).to(self.device)
+        # self.predictive_model_optim = torch.optim.Adam(self.predictive_model.parameters(), lr=lr)
+        # self.exploration_scaling_factor = exploration_scaling_factor
 
 
 
@@ -68,19 +68,20 @@ class SAC(object):
         # Υou can't call .numpy() on a GPU tensor.
         return action.detach().cpu().numpy()[0]
 
-    def update_parameters(self, replay_buffer, updates, batch_size):
+    def update_parameters(self, memory, updates, batch_size):
         self.total_it += 1
+        
+        # each of these is a batch ( not a single sample )
+        state, action, next_state, reward, not_done = memory.sample(batch_size)
 
-        state, action, next_state, reward, not_done = replay_buffer.sample(batch_size)
+        # # -------------------- Predictive Model --------------------
+        # predictive_next_state = self.predictive_model(state, action)
+        # prediction_error = F.mse_loss(predictive_next_state, next_state) # loss for the update of the nn
+        # prediction_error_no_reduction = F.mse_loss(predictive_next_state, next_state,reduction ="none") # loss that will feed the agent as the intrinsic reward
 
-        # -------------------- Predictive Model --------------------
-        predictive_next_state = self.predictive_model(state, action)
-        prediction_error = F.mse_loss(predictive_next_state, next_state) # loss for the update of the nn
-        prediction_error_no_reduction = F.mse_loss(predictive_next_state, next_state,reduction ="none") # loss that will feed the agent as the intrinsic reward
-
-        scaled_intrinsic_reward = prediction_error_no_reduction.mean(dim=1)
-        scaled_intrinsic_reward= self.exploration_scaling_factor*torch.reshape(scaled_intrinsic_reward,(batch_size,1))
-        reward = reward+ scaled_intrinsic_reward
+        # scaled_intrinsic_reward = prediction_error_no_reduction.mean(dim=1)
+        # scaled_intrinsic_reward= self.exploration_scaling_factor*torch.reshape(scaled_intrinsic_reward,(batch_size,1))
+        # reward = reward+ scaled_intrinsic_reward
 
         # -------------------- Critic Update --------------------
         critic_loss= update_critic(
@@ -93,7 +94,7 @@ class SAC(object):
             action,
             reward,
             next_state,
-            1 - not_done,
+            not_done,
             self.gamma,
             self.target_update_interval,
             updates,
@@ -101,10 +102,10 @@ class SAC(object):
         )
         
 
-        # Update the ICM
-        self.predictive_model_optim.zero_grad()
-        prediction_error.backward()
-        self.predictive_model_optim.step()
+        # # Update the ICM
+        # self.predictive_model_optim.zero_grad()
+        # prediction_error.backward()
+        # self.predictive_model_optim.step()
 
 
         # -------------------- Actor Update --------------------
@@ -126,7 +127,7 @@ class SAC(object):
        
         
 
-        return actor_loss, critic_loss , prediction_error, alpha_loss, alpha_tlogs
+        return actor_loss, critic_loss , alpha_loss, alpha_tlogs
     
 
     def training(self,env, env_name, memory: ReplayBuffer, episodes, batch_size, updates_per_step, summary_writer_name="", max_episode_steps=100):
@@ -145,11 +146,14 @@ class SAC(object):
 
 
         for episode in range(episodes):
-                state,_ = env.reset()
+                
   
                 episode_reward = 0      
                 steps_per_episode = 0
                 done= False
+
+                state,_ = env.reset()
+
 
                 while not done and steps_per_episode < max_episode_steps:
                     
@@ -163,11 +167,11 @@ class SAC(object):
                     #if you can sample, go do training, graph the results , come back
                     if memory.can_sample(batch_size=batch_size):
                         for i in range(updates_per_step):
-                            actor_loss, critic_loss, prediction_loss, ent_loss, alpha= self.update_parameters(memory, updates, batch_size)
+                            actor_loss, critic_loss, ent_loss, alpha= self.update_parameters(memory, updates, batch_size)
                             # Tensorboard
                             writer.add_scalar('loss/critic_overall', critic_loss, updates)
                             writer.add_scalar('loss/policy', actor_loss, updates)
-                            writer.add_scalar('loss/prediction', prediction_loss, updates)
+                            # writer.add_scalar('loss/prediction', prediction_loss, updates)
                             
                             updates += 1
 

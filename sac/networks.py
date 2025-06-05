@@ -47,12 +47,12 @@ class Actor(nn.Module):
         self.checkpoints_file=os.path.join(self.checkpoints, name +'sac')
         self.apply(weights_init)  # Initialize weights of the network
 
-        if action_space is None:
-            self.action_scale = torch.tensor(1.)
-            self.action_bias = torch.tensor(0.)
-        else:
-            self.action_scale = torch.FloatTensor((action_space.high - action_space.low) / 2.)
-            self.action_bias = torch.FloatTensor((action_space.high + action_space.low) / 2.)
+        # if action_space is None:
+        #     self.action_scale = torch.tensor(1.)
+        #     self.action_bias = torch.tensor(0.)
+        # else:
+        #     self.action_scale = torch.FloatTensor((action_space.high - action_space.low) / 2.)
+        #     self.action_bias = torch.FloatTensor((action_space.high + action_space.low) / 2.)
 
 
     def forward(self, state):
@@ -66,33 +66,37 @@ class Actor(nn.Module):
         #  or too large (which could make exploration too random).
         log_std = torch.clamp(log_std, LOG_STD_MIN, LOG_STD_MAX)
         #  Convert log(σ) back to standard deviation (σ)
-        std = log_std.exp()
 
-        return mean, std
+        return mean, log_std
 
         # This is the function that samples an action
         # based on the current state and the network's predicted distribution over actions
         # You define π(α|s)as a Gaussian distribution with mean μ(s) and standard deviation σ(s)
         # Then you sample through reparameterization
-    
+
     def sample(self, state):
-        mean, std = self.forward(state)
+        
+
+        mean, log_std = self.forward(state)
+        std = log_std.exp()
+        # print("You caught an  std", std[:2])
+
         #  Creates a Gaussian distribution with the predicted mean and std.
         normal = torch.distributions.Normal(mean, std)
         x_t = normal.rsample()  # reparameterization trick x_t= mean+ std*epsilon
         y_t = torch.tanh(x_t) #  The tanh function squashes the output to be between -1 and 1???????????????
         #  The action is scaled by the max_action to ensure it stays within valid bounds???????
         
-        action = y_t * self.max_action  + self.action_bias
+        action = y_t * self.max_action  #+ self.action_bias
 
         #  Computes the log-probability of the action under the Gaussian distribution
         log_prob = normal.log_prob(x_t)
         #  1 - y_t.pow(2) is the derivative of tanh(z) (chain rule).
         log_prob -= torch.log(self.max_action*(1 - y_t.pow(2) )+ 1e-6)
         log_prob = log_prob.sum(1, keepdim=True)
-
         # A sampled, squashed, scaled action from the policy
         # Its corrected log-probability, which is needed for the entropy term in SAC's policy loss
+        mean = torch.tanh(mean) * self.max_action #+ self.action_bias
         return action, log_prob
 
     # For the deterministic action, you can use the mean of the distribution
@@ -101,10 +105,10 @@ class Actor(nn.Module):
         with torch.no_grad():
             mean, _ = self.forward(state)
             return torch.tanh(mean) * self.max_action
-    def to(self, device):
-        self.action_scale = self.action_scale.to(device)
-        self.action_bias = self.action_bias.to(device)
-        return super(Actor, self).to(device)
+    # def to(self, device):
+    #     self.action_scale = self.action_scale.to(device)
+    #     self.action_bias = self.action_bias.to(device)
+    #     return super(Actor, self).to(device)
     # Save progress
     def save_checkpoint(self):
         # Example Usage  
@@ -120,78 +124,78 @@ class Actor(nn.Module):
 
 class Critic(nn.Module):
         def __init__(self, state_dim, action_dim,hidden_size, name= 'critic', checkpoints= 'checkpoints'):
-                super(Critic, self).__init__()
+            super(Critic, self).__init__()
 
-                # Q1 architecture
-                self.l1 = nn.Linear(state_dim + action_dim, hidden_size)
-                self.l2 = nn.Linear(hidden_size, hidden_size)
-                self.l3 = nn.Linear(hidden_size, 1)
+            # Q1 architecture
+            self.l1 = nn.Linear(state_dim + action_dim, hidden_size)
+            self.l2 = nn.Linear(hidden_size, hidden_size)
+            self.l3 = nn.Linear(hidden_size, 1)
 
-                # Q2 architecture
-                self.l4 = nn.Linear(state_dim + action_dim, hidden_size)
-                self.l5 = nn.Linear(hidden_size, hidden_size)
-                self.l6 = nn.Linear(hidden_size, 1)
+            # Q2 architecture
+            self.l4 = nn.Linear(state_dim + action_dim, hidden_size)
+            self.l5 = nn.Linear(hidden_size, hidden_size)
+            self.l6 = nn.Linear(hidden_size, 1)
 
-                self.name= name
-                self.checkpoints=checkpoints
-                self.checkpoints_file=os.path.join(self.checkpoints, name +'sac')
-                self.apply(weights_init)  # Initialize weights of the network
+            self.name= name
+            self.checkpoints=checkpoints
+            self.checkpoints_file=os.path.join(self.checkpoints, name +'sac')
+            self.apply(weights_init)  # Initialize weights of the network
 
         def forward(self, state, action):
-                sa = torch.cat([state, action], 1)
+            sa = torch.cat([state, action], 1)
 
-                q1 = F.relu(self.l1(sa))
-                q1 = F.relu(self.l2(q1))
-                q1 = self.l3(q1)
+            q1 = F.relu(self.l1(sa))
+            q1 = F.relu(self.l2(q1))
+            q1 = self.l3(q1)
 
-                q2 = F.relu(self.l4(sa))
-                q2 = F.relu(self.l5(q2))
-                q2 = self.l6(q2)
+            q2 = F.relu(self.l4(sa))
+            q2 = F.relu(self.l5(q2))
+            q2 = self.l6(q2)
 
-                return q1, q2
+            return q1, q2
         
         def Q1(self, state, action):
-                sa = torch.cat([state, action], 1)
+            sa = torch.cat([state, action], 1)
 
-                q1 = F.relu(self.l1(sa))
-                q1 = F.relu(self.l2(q1))
-                q1 = self.l3(q1)
-                return q1
+            q1 = F.relu(self.l1(sa))
+            q1 = F.relu(self.l2(q1))
+            q1 = self.l3(q1)
+            return q1
         
         # Save progress
         def save_checkpoint(self):
-                # Example Usage  
-                # model.load_state_dict(torch.load("actor_checkpoint.pth"))
-                # model.eval()  # Set to eval mode if you're not training
-                #the state__dict produces a dict with 4 inputs and 254 outputs for linear1
-                torch.save(self.state_dict(), self.checkpoints_file)
+            # Example Usage  
+            # model.load_state_dict(torch.load("actor_checkpoint.pth"))
+            # model.eval()  # Set to eval mode if you're not training
+            #the state__dict produces a dict with 4 inputs and 254 outputs for linear1
+            torch.save(self.state_dict(), self.checkpoints_file)
 
         # Reload progress
         def load_checkpoint(self):
-                self.load_state_dict(torch.load(self.checkpoints_file))
+            self.load_state_dict(torch.load(self.checkpoints_file))
 
     
 
 
-class PredictiveModel(nn.Module):
-    def __init__(self, num_inputs, num_actions, hidden_dim, checkpoints='checkpoints', name='predictive_network'):
-        super(PredictiveModel, self).__init__()
-        self.fc1 = nn.Linear(num_inputs + num_actions, hidden_dim)
-        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
-        self.fc3 = nn.Linear(hidden_dim, num_inputs)
-        self.checkpoints=checkpoints
-        self.checkpoint_file = os.path.join(checkpoints, name+'sac')
+# class PredictiveModel(nn.Module):
+#     def __init__(self, num_inputs, num_actions, hidden_dim, checkpoints='checkpoints', name='predictive_network'):
+#         super(PredictiveModel, self).__init__()
+#         self.fc1 = nn.Linear(num_inputs + num_actions, hidden_dim)
+#         self.fc2 = nn.Linear(hidden_dim, hidden_dim)
+#         self.fc3 = nn.Linear(hidden_dim, num_inputs)
+#         self.checkpoints=checkpoints
+#         self.checkpoint_file = os.path.join(checkpoints, name+'sac')
 
-    def forward(self, state, action):
-        x = torch.cat([state, action], dim=1)
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        predicted_state = self.fc3(x)
-        return predicted_state
+#     def forward(self, state, action):
+#         x = torch.cat([state, action], dim=1)
+#         x = F.relu(self.fc1(x))
+#         x = F.relu(self.fc2(x))
+#         predicted_state = self.fc3(x)
+#         return predicted_state
     
-    def save_checkpoint(self):
-        torch.save(self.state_dict(), self.checkpoint_file)
+#     def save_checkpoint(self):
+#         torch.save(self.state_dict(), self.checkpoint_file)
 
-    def load_checkpoint(self):
-        self.load_state_dict(torch.load(self.checkpoint_file))
+#     def load_checkpoint(self):
+#         self.load_state_dict(torch.load(self.checkpoint_file))
 

@@ -36,16 +36,20 @@ def update_actor(actor, critics, actor_optimizer, alpha, state):
     return actor_loss.item(), log_pi.detach()
 
 def update_critic(critics, critic_targets, critic_optimizer, actor, alpha,  
-                  state, action, reward, next_state, done, gamma, target_update_interval, updates, tau):
+                  state, action, reward, next_state, not_done, gamma, target_update_interval, updates, tau):
     
     with torch.no_grad():
         next_action, next_log_pi = actor.sample(next_state)
         # Critic's forward returns 2 networks q1, q2
         target_q1, target_q2 = critic_targets(next_state, next_action)
         target_q = torch.min(target_q1, target_q2) - alpha * next_log_pi
-        target_value = reward + (1 - done) * gamma * target_q
+        target_value = reward + not_done* gamma * target_q
+        
+    # print("Reward mean:", reward.mean().item(), "Target Q mean:", target_q.mean().item())
+
 
     current_q1,current_q2 = critics(state, action)
+    # print("Q1 mean:", current_q1.mean().item(), "Target mean:", target_value.mean().item())
 
     critic_loss = F.mse_loss(current_q1, target_value) + F.mse_loss(current_q2, target_value)
 
