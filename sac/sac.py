@@ -37,19 +37,18 @@ class SAC(object):
         # Temperature parameter (log_alpha is learnable)
         #self.alpha = Temperature().to(self.device)
         #self.alpha_optimizer = torch.optim.Adam(self.alpha.parameters(), lr=alpha_lr)
-        self.alpha=0.12
+        #self.alpha=0.12
 
-        # Entropy target
-        if target_entropy is None:
-            self.target_entropy = -action_dim  # Heuristic from SAC paper
-        else:
-            self.target_entropy = target_entropy
+        # Entropy coefficient (log_alpha as a trainable parameter)
+        self.log_alpha = torch.nn.Parameter(torch.tensor(np.log(0.1), dtype=torch.float32).to(self.device), requires_grad=True)
+        self.alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=3e-4)
 
-        # Initialise the predictive model
-        self.predictive_model = PredictiveModel(num_inputs=state_dim, num_actions=action_dim,hidden_dim=hidden_size)
-        self.predictive_model_optim = torch.optim.Adam(self.predictive_model.parameters(), lr=lr)
-        self.exploration_factor = exploration_scaling_factor
+        # Target entropy (recommended: -action_dim)
+        self.target_entropy = -action_dim
+
     
+    def temperature(self):
+        return self.log_alpha.exp()
 
     def training(self,env, env_name, memory: ReplayBuffer, episodes, batch_size, updates_per_step, summary_writer_name="", max_episode_steps=100):
 
@@ -86,7 +85,7 @@ class SAC(object):
                     #if you can sample, go do training, graph the results , come back
                     if memory.can_sample(batch_size=batch_size):
                         for i in range(updates_per_step):
-                            actor_loss, critic_loss= self.update_parameters(memory, updates, batch_size)
+                            actor_loss, critic_loss, _= self.update_parameters(memory, updates, batch_size)
                             # Tensorboard
                             writer.add_scalar('loss/critic_overall', critic_loss, updates)
                             writer.add_scalar('loss/policy', actor_loss, updates)
@@ -153,6 +152,8 @@ class SAC(object):
 
     def update_parameters(self, replay_buffer, updates, batch_size=256):
 
+        self.alpha = self.temperature()
+        
         state, action, next_state, reward, not_done = replay_buffer.sample(batch_size)
 
         # -------------------- Critic Update --------------------
@@ -183,10 +184,11 @@ class SAC(object):
             updates
         )
 
-        # -------------------- Temperature Update --------------------
-        # alpha_loss= update_temperature(
-        #     self.alpha, self.alpha_optimizer, log_pi, self.target_entropy
-        # )
+       # -------------------- Temperature Update --------------------
+
+        alpha_loss= update_temperature(
+            self.alpha, self.alpha_optimizer, self.log_alpha, log_pi, self.target_entropy, updates
+        )
 
         # -------------------- Target Network Update --------------------
        # soft_update(self.critic, self.critic_target, self.tau)
@@ -201,7 +203,7 @@ class SAC(object):
       #  prediction_error_no_reduction = F.mse_loss(predictive_next_state, next_state, reduce=False)
 
 
-        return actor_loss, critic_loss#, alpha_loss
+        return actor_loss, critic_loss, alpha_loss
 
 
   

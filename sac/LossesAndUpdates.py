@@ -22,6 +22,7 @@ import numpy as np
 
 def update_actor(actor, critics, actor_optimizer, temperature, state,updates):
     
+
     new_action, log_pi= actor.samplee(state) # samples action
     q1, q2 = critics(state, new_action)# calculates the q values for this sampled action
     q_min = torch.min(q1, q2) # finds the min between the q values
@@ -47,6 +48,7 @@ def update_actor(actor, critics, actor_optimizer, temperature, state,updates):
 def update_critic(critics, critic_targets, critic_optimizer, actor, temperature,  
                   state, action, reward, next_state, done, gamma, target_update_interval, updates, tau):
     
+    
     with torch.no_grad():
         next_action, next_log_p = actor.samplee(next_state)
         # Critic's forward returns 2 networks q1, q2
@@ -65,15 +67,17 @@ def update_critic(critics, critic_targets, critic_optimizer, actor, temperature,
     critic_optimizer.step()
     return critic_loss.item()
 
-def update_temperature(temperature, alpha_optimizer, log_pi, target_entropy):
-    # alpha_loss = -(temperature.log_alpha * (log_pi + target_entropy).detach()).mean()
+def update_temperature(temperature, temperature_optimizer,log_a, log_pi, target_entropy, updates):
+    
+    if updates % 100 == 0:  # optional throttle
+        print("temperature:", temperature)
+    
+    temperature_loss = -(log_a * (log_pi.detach() + target_entropy)).mean()
+    temperature_optimizer.zero_grad()
+    temperature_loss.backward()
+    temperature_optimizer.step()
 
-    # alpha_optimizer.zero_grad()
-    # alpha_loss.backward()
-    # alpha_optimizer.step()
-    alpha_loss= torch.tensor(0.)
-    alpha_tlogs=torch.tensor(temperature)
-    return alpha_loss.item(),alpha_tlogs
+    return temperature_loss.item()
 
 def soft_update(critics, critic_targets, tau):
    # print("yo")
