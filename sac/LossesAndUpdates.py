@@ -66,3 +66,11 @@ def soft_update(critics, critic_targets, tau):
     for param, target_param in zip(critics.parameters(), critic_targets.parameters()):
         target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
     
+def update_temperature(log_alpha, alpha_optimizer, log_pi, target_entropy):
+    alpha_loss = -(log_alpha * (log_pi + target_entropy).detach()).mean()
+
+    alpha_optimizer.zero_grad()
+    alpha_loss.backward()
+    alpha_optimizer.step()
+
+    return alpha_loss.item()

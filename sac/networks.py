@@ -175,10 +175,10 @@ class Critic(nn.Module):
             self.load_state_dict(torch.load(self.checkpoints_file))
 
         
-class Temperature(nn.Module):
-    def __init__(self, init_log_alpha=0.0):
-        super().__init__()
-        self.log_alpha = nn.Parameter(torch.tensor(init_log_alpha))
+# class Temperature(nn.Module):
+#     def __init__(self, init_log_alpha=0.0):
+#         super().__init__()
+#         self.log_alpha = nn.Parameter(torch.tensor(init_log_alpha))
 
-    def forward(self):
-        return self.log_alpha.exp()
+#     def forward(self):
+#         return self.log_alpha.exp()

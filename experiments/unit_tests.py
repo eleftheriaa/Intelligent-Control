@@ -35,12 +35,20 @@ class UnitTests:
         env_name = "PointMaze_UMaze-v3"
         max_episode_steps = 100
         exploration_scaling_factor=1.5
+        target_entropy =None
 
         example_map = [
         [1, 1, 1, 1, 1],
         [1, 0, 0, 0, 1],
         [1, 1, 1, 1, 1]
         ]
+
+        U_MAZE = [[1, 1, 1, 1, 1],
+                [1, 0, 0, 0, 1],
+                [1, 1, 1, 0, 1],
+                [1, 0, 0, 0, 1],
+                [1, 1, 1, 1, 1]]
+
 
         env = gym.make('PointMaze_UMaze-v3', maze_map=example_map, render_mode="human")
         env = RoboGymObservationWrapper(env)
@@ -58,7 +66,8 @@ class UnitTests:
                 tau=tau,
                 alpha = alpha,
                 lr= learning_rate,
-                target_update_interval= target_update_interval
+                target_update_interval= target_update_interval,
+                target_entropy=target_entropy
             )
 
             memory= ReplayBuffer(observation_size, env.action_space.shape[0], replay_buffer_size)

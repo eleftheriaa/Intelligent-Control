@@ -7,7 +7,7 @@ import datetime
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
 from .replay_buffer import ReplayBuffer
-from .LossesAndUpdates import update_actor, update_critic, soft_update
+from .LossesAndUpdates import update_actor, update_critic, soft_update, update_temperature
 from .networks import Actor, Critic
 
 
@@ -17,7 +17,7 @@ class SAC(object):
  # -------------------- SAC --------------------
 
     def __init__(self, state_dim, action_dim, max_action,hidden_size, exploration_scaling_factor,
-                 gamma, tau,alpha , lr,target_update_interval):
+                 gamma, tau,alpha , lr,target_update_interval, target_entropy):
         self.max_action = max_action
         self.gamma = gamma
         self.tau = tau
@@ -38,15 +38,18 @@ class SAC(object):
         self.critic_target = copy.deepcopy(self.critic)
         self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=lr)
 
-       
+        #  temperature parameter
+        self.log_alpha=torch.zeros(1, requires_grad =True, device=self.device)
+        self.alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=lr)
 
         # # Entropy target
-        # if target_entropy is None:
-        #     self.target_entropy = -action_dim  # Heuristic from SAC paper
-        # else:
-        #     self.target_entropy = target_entropy
+        if target_entropy is None:
+            self.target_entropy = -action_dim.shape[0]  # Heuristic from SAC paper
+        else:
+            self.target_entropy = target_entropy
 
-
+    def alpha(self):
+        return self.log_alpha.exp()
 
 
 # -------------------- SAC Methods--------------------
@@ -69,8 +72,6 @@ class SAC(object):
         # each of these is a batch ( not a single sample )
         state, action, next_state, reward, not_done = memory.sample(batch_size)
 
-        
-
         # -------------------- Critic Update --------------------
         critic_loss= update_critic(
             self.critic,
@@ -89,11 +90,7 @@ class SAC(object):
             self.tau
         )
         
-
-
-
-
-
+       
         # -------------------- Actor Update --------------------
         actor_loss, log_pi = update_actor(
             self.actor,
@@ -102,10 +99,17 @@ class SAC(object):
             self.alpha,
             state
         )
-        alpha_loss = torch.tensor(0.).to(self.device)
-        alpha_tlogs = torch.tensor(self.alpha)
+        
 
-       
+        # --------------------Temperature Update ------------------------
+        alpha_loss = update_temperature(
+            self.log_alpha,
+            self.alpha_optimizer,
+            log_pi,
+            self.target_entropy
+            )
+
+
         # -------------------- Target Network Update --------------------
         if updates % self.target_update_interval == 0:
 
@@ -113,7 +117,7 @@ class SAC(object):
        
         
 
-        return actor_loss, critic_loss , alpha_loss, alpha_tlogs
+        return actor_loss, critic_loss , alpha_loss
     
 
     def training(self,env, env_name, memory: ReplayBuffer, episodes, batch_size, updates_per_step, summary_writer_name="", max_episode_steps=100):
@@ -153,8 +157,9 @@ class SAC(object):
                     #if you can sample, go do training, graph the results , come back
                     if memory.can_sample(batch_size=batch_size):
                         for i in range(updates_per_step):
-                            actor_loss, critic_loss, ent_loss, alpha= self.update_parameters(memory, updates, batch_size)
+                            actor_loss, critic_loss, alpha_loss= self.update_parameters(memory, updates, batch_size)
                             # Tensorboard
+                            writer.add_scalar('loss/alpha', alpha_loss)
                             writer.add_scalar('loss/critic_overall', critic_loss, updates)
                             writer.add_scalar('loss/policy', actor_loss, updates)
                             
