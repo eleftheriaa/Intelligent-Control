@@ -37,14 +37,15 @@ def update_actor(actor, critics, actor_optimizer, temperature, state):
     return actor_loss.item(), log_pi.detach()
 
 def update_critic(critics, critic_targets, critic_optimizer, actor, temperature,  
-                  state, action, reward, next_state, done, gamma, target_update_interval, updates, tau):
+                  state, action, reward, next_state, not_done, gamma, target_update_interval, updates, tau):
     
     with torch.no_grad():
         next_action, next_log_pi = actor.sample(next_state)
         # Critic's forward returns 2 networks q1, q2
         target_q1, target_q2 = critic_targets(next_state, next_action)
         target_q = torch.min(target_q1, target_q2) - temperature * next_log_pi
-        target_value = reward + (1 - done) * gamma * target_q
+        target_value = reward + not_done * gamma * target_q
+        
 
     current_q1,current_q2 = critics(state, action)
 
@@ -61,11 +62,10 @@ def update_critic(critics, critic_targets, critic_optimizer, actor, temperature,
     return critic_loss.item()
 
 def update_temperature(temperature,log_alpha, alpha_optimizer, log_pi, target_entropy, updates):
-    if updates % 100 ==0:
-        print("temperature parameter:",temperature)
-        print("log_pi", log_pi[:2])
+    # if updates % 100 ==0:
+        # print("temperature parameter:",temperature)
 
-    alpha_loss = -(log_alpha * (log_pi + target_entropy).detach()).mean()
+    alpha_loss = -(log_alpha * (log_pi.detach() + target_entropy)).mean()
 
     alpha_optimizer.zero_grad()
     alpha_loss.backward()

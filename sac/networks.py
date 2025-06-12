@@ -27,7 +27,7 @@ def weights_init(m):
 #  Gaussian Policy (Actor)
 class Actor(nn.Module):
 
-    def __init__(self, state_dim, action_dim, hidden_size,action_space, max_action, name= 'actor', checkpoints= 'checkpoints'):
+    def __init__(self, state_dim, action_dim, hidden_size,action_space, name= 'actor', checkpoints= 'checkpoints'):
         super(Actor, self).__init__()
         # Two fully connected hidden layers with 256 units each.
         self.l1 = nn.Linear(state_dim, hidden_size)
@@ -40,7 +40,7 @@ class Actor(nn.Module):
         self.log_std_layer = nn.Linear(hidden_size, action_dim)
 
         # Actions will be scaled by this value to ensure they stay within valid bounds
-        self.max_action = max_action 
+        self.max_action = 1 
 
         self.name= name
         self.checkpoints=checkpoints
