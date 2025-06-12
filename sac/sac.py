@@ -42,7 +42,7 @@ class SAC(object):
         self.alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=3e-4)
 
         # Entropy target
-        self.target_entropy = -action_dim.shape[0]  # Heuristic from SAC paper
+        self.target_entropy = -action_dim.shape[0] * 0.5 # Heuristic from SAC paper
         # if target_entropy is None:
         #     self.target_entropy = -action_dim.shape[0]  # Heuristic from SAC paper
         # else:
@@ -161,7 +161,7 @@ class SAC(object):
                         for i in range(updates_per_step):
                             actor_loss, critic_loss,log_pi= self.update_parameters(memory, updates, batch_size)
                             # Tensorboard
-                            writer.add_scalar('log_pi/updates', log_pi,updates)
+                            writer.add_scalar('log_pi/updates', log_pi[:1],updates)
                             writer.add_scalar('alpha', self.alpha,updates)
                             writer.add_scalar('loss/critic_overall', critic_loss, updates)
                             writer.add_scalar('loss/policy', actor_loss, updates)
@@ -170,8 +170,6 @@ class SAC(object):
                             updates += 1
 
                     next_state, reward, done, _, _ = env.step(action)
-
-                    
 
                     steps_per_episode += 1
                     total_numsteps += 1
