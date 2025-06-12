@@ -59,7 +59,6 @@ class UnitTests:
             agent= SAC (
                 state_dim=observation_size,
                 action_dim=env.action_space,
-                max_action=1.0,
                 hidden_size=hidden_size,                
                 exploration_scaling_factor=exploration_scaling_factor,
                 gamma=gamma,

@@ -22,7 +22,7 @@ class SAC(object):
         self.tau = tau
         self.total_it = 0
         self.target_update_interval = target_update_interval
-        self.alpha=alpha
+        #self.alpha=alpha
 
         # Training neural networks on GPU is often 10× to 100× faster than CPU
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -37,19 +37,19 @@ class SAC(object):
         self.critic_target = copy.deepcopy(self.critic)
         self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=lr)
 
-    #     #  temperature parameter
-    #     self.log_alpha = torch.nn.Parameter(torch.tensor(np.log(0.1), dtype=torch.float32).to(self.device), requires_grad=True)
-    #     self.alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=3e-4)
+        #  temperature parameter
+        self.log_alpha = torch.nn.Parameter(torch.tensor(np.log(0.1), dtype=torch.float32).to(self.device), requires_grad=True)
+        self.alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=3e-4)
 
-    #     # Entropy target
-    #     self.target_entropy = -action_dim.shape[0]  # Heuristic from SAC paper
-    #     # if target_entropy is None:
-    #     #     self.target_entropy = -action_dim.shape[0]  # Heuristic from SAC paper
-    #     # else:
-    #     #     self.target_entropy = target_entropy
+        # Entropy target
+        self.target_entropy = -action_dim.shape[0]  # Heuristic from SAC paper
+        # if target_entropy is None:
+        #     self.target_entropy = -action_dim.shape[0]  # Heuristic from SAC paper
+        # else:
+        #     self.target_entropy = target_entropy
 
-    # def temperature(self):
-    #     return self.log_alpha.exp()
+    def temperature(self):
+        return self.log_alpha.exp()
 
 
 # -------------------- SAC Methods--------------------
@@ -68,7 +68,7 @@ class SAC(object):
 
     def update_parameters(self, memory, updates, batch_size):
         self.total_it += 1
-        # self.alpha = self.temperature()
+        self.alpha = self.temperature()
         # each of these is a batch ( not a single sample )
         state, action, next_state, reward, not_done = memory.sample(batch_size)
         
@@ -101,15 +101,15 @@ class SAC(object):
             state
         )
         
-        # # --------------------Temperature Update ------------------------
-        # alpha_loss = update_temperature(
-        #     self.alpha,
-        #     self.log_alpha,
-        #     self.alpha_optimizer,
-        #     log_pi,
-        #     self.target_entropy,
-        #     updates
-        #     )
+        # --------------------Temperature Update ------------------------
+        alpha_loss = update_temperature(
+            self.alpha,
+            self.log_alpha,
+            self.alpha_optimizer,
+            log_pi,
+            self.target_entropy,
+            updates
+            )
 
 
         # -------------------- Target Network Update --------------------
@@ -119,7 +119,7 @@ class SAC(object):
        
         
 
-        return actor_loss, critic_loss 
+        return actor_loss, critic_loss, log_pi
     
 
     def training(self,env, env_name, memory: ReplayBuffer, episodes, batch_size, updates_per_step, summary_writer_name="", max_episode_steps=100):
@@ -159,9 +159,9 @@ class SAC(object):
                     #if you can sample, go do training, graph the results , come back
                     if memory.can_sample(batch_size=batch_size):
                         for i in range(updates_per_step):
-                            actor_loss, critic_loss= self.update_parameters(memory, updates, batch_size)
+                            actor_loss, critic_loss,log_pi= self.update_parameters(memory, updates, batch_size)
                             # Tensorboard
-                            # writer.add_scalar('loss/alpha', alpha_loss)
+                            writer.add_scalar('log_pi/updates', log_pi,updates)
                             writer.add_scalar('alpha', self.alpha,updates)
                             writer.add_scalar('loss/critic_overall', critic_loss, updates)
                             writer.add_scalar('loss/policy', actor_loss, updates)
