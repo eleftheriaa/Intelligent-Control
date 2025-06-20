@@ -10,10 +10,11 @@ from sac import SAC, ReplayBuffer
 def unit_testss():
     tester = UnitTests()
     #tester.replay_buffer()
-    tester.main3()
+    tester.main2()
 
 
 if __name__ == "__main__":
     
     unit_testss()
     #main()
+

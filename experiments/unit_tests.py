@@ -53,13 +53,13 @@ class UnitTests:
         env = gym.make('PointMaze_UMaze-v3', maze_map=example_map, render_mode="human")
         env = RoboGymObservationWrapper(env)
         observation, info = env.reset()
-
         observation_size = observation.shape[0]
+        print("observation size:",observation_size)
+
         try:
             agent= SAC (
                 state_dim=observation_size,
                 action_dim=env.action_space,
-                max_action=1.0,
                 hidden_size=hidden_size,                
                 exploration_scaling_factor=exploration_scaling_factor,
                 gamma=gamma,
