@@ -8,14 +8,14 @@ it to robotics tasks. Analyze the impact of entropy regularization, target netwo
 # **Setup and Running Instructions**
 
 ## 1.First, clone this repository to your local machine:
+#### i. Open a terminal and run:
 
     git clone https://github.com/eleftheriaa/Intelligent-Control.git
 
     cd Intelligent-Control
+    
 
-
-
-### To run the SAC algorithm implementation successfully, follow these steps:
+To run the SAC algorithm implementation successfully, follow these steps:
 
 ## 2. Create a Conda Environment (Recommended)
 
