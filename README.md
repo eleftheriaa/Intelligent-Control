@@ -40,7 +40,7 @@ To run the SAC algorithm implementation successfully, follow these steps:
   
   i. Open a new terminal in visual studio
   
-  ii. Activate the same conda environment (conda activate sac_env)
+  ii. Activate the same conda environment (conda activate sac_env)*
   
   iii.Run:
     
