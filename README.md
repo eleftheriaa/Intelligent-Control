@@ -14,21 +14,21 @@ To run the SAC algorithm implementation successfully, follow these steps:
   
   i. Open a terminal and run:
   
-   `conda create -n sac_env python=3.10 -y`
-   
-   `conda activate sac_env`
+     `conda create -n sac_env python=3.10 -y`
+     
+     `conda activate sac_env`
 
 **2.  Install Required Libraries**
 
   Once the environment is activated, install the following required packages:
   
-   `pip install numpy torch gymnasium gymnasium-robotics tensorboard`
+     `pip install numpy torch gymnasium gymnasium-robotics tensorboard`
 
 **3.  Run the Program**
 
   Make sure you are in the directory that contains the main Python file (e.g., main.py) and run:
   
-   `python main.py`
+     `python main.py`
 
   This will begin training the agent on the selected environment (default: "PointMaze_UMaze-v3")
   
@@ -36,13 +36,13 @@ To run the SAC algorithm implementation successfully, follow these steps:
 
 **4.  Visualize Training with TensorBoard**
 
-    To monitor the training in real time:
-    
-    i. Open a new terminal in visual studio
-    
-    ii. Activate the same conda environment (conda activate sac_env)
-    
-    iii.Run:
+  To monitor the training in real time:
+  
+  i. Open a new terminal in visual studio
+  
+  ii. Activate the same conda environment (conda activate sac_env)
+  
+  iii.Run:
     
      `tensorboard --logdir=runs/`
    
