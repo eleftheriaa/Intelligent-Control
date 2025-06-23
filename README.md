@@ -8,8 +8,7 @@ it to robotics tasks. Analyze the impact of entropy regularization, target netwo
 # **Setup and Running Instructions**
 To run the SAC algorithm implementation successfully, follow these steps:
 
-<u>Underlined ### **1. Create a Conda Environment (Recommended)**</u>
-
+## **1. Create a Conda Environment (Recommended)**
 
   Using a virtual environment ensures that dependencies do not interfere with other projects.
   
@@ -19,13 +18,13 @@ To run the SAC algorithm implementation successfully, follow these steps:
      
      conda activate sac_env
 
-### **2.  Install Required Libraries**
+## **2.  Install Required Libraries**
 
   Once the environment is activated, install the following required packages:
   
      pip install numpy torch gymnasium gymnasium-robotics tensorboard
 
-### **3.  Run the Program**
+## **3.  Run the Program**
 
   Make sure you are in the directory that contains the main Python file (e.g., main.py) and run:
   
@@ -35,7 +34,7 @@ To run the SAC algorithm implementation successfully, follow these steps:
   
   TensorBoard logs will be saved in the runs/ directory.
 
-### **4.  Visualize Training with TensorBoard**
+## **4.  Visualize Training with TensorBoard**
 
   To monitor the training in real time:
   
