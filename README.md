@@ -8,7 +8,8 @@ it to robotics tasks. Analyze the impact of entropy regularization, target netwo
 # **Setup and Running Instructions**
 To run the SAC algorithm implementation successfully, follow these steps:
 
-### **1. Create a Conda Environment (Recommended)**
+<u>Underlined ### **1. Create a Conda Environment (Recommended)**</u>
+
 
   Using a virtual environment ensures that dependencies do not interfere with other projects.
   
