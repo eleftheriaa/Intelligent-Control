@@ -1,4 +1,4 @@
-#**Implementing Soft Actor-Critic (SAC) from Scratch**
+# **Implementing Soft Actor-Critic (SAC) from Scratch**
 Topics: Actor-Critic, Maximum Entropy RL, Continuous Control
 Description: Implement the SAC algorithm from scratch using PyTorch or JAX and apply
 it to robotics tasks. Analyze the impact of entropy regularization, target networks, and Qfunction stability.
@@ -6,7 +6,7 @@ it to robotics tasks. Analyze the impact of entropy regularization, target netwo
 
 # **Setup and Running Instructions**
 To run the SAC algorithm implementation successfully, follow these steps:
-# 1. Create a Conda Environment (Recommended)
+**1. Create a Conda Environment (Recommended)**
   Using a virtual environment ensures that dependencies do not interfere with other projects.
   i. Open a terminal and run:
    `conda create -n sac_env python=3.10 -y`
