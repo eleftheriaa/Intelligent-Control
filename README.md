@@ -36,15 +36,15 @@ To run the SAC algorithm implementation successfully, follow these steps:
 
 **4.  Visualize Training with TensorBoard**
 
-  To monitor the training in real time:
-  
-  i. Open a new terminal in visual studio
-  
-  ii. Activate the same conda environment (conda activate sac_env)
-  
-  iii.Run:
-  
-   `tensorboard --logdir=runs/`
+    To monitor the training in real time:
+    
+    i. Open a new terminal in visual studio
+    
+    ii. Activate the same conda environment (conda activate sac_env)
+    
+    iii.Run:
+    
+     `tensorboard --logdir=runs/`
    
   iv.Then, open your browser and go to suggested link
 
